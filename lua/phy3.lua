@@ -215,13 +215,13 @@ local function LoadCompactLedge( ptr )
 
     local ledge = CompactLedge()
     ledge.has_children_flag = band( ledge.data, 0x00000003 ) ~= 0
-	ledge.is_compact_flag = rshift( band( ledge.data, 0x0000000C ), 2 ) ~= 0
-	ledge.size = rshift( band( ledge.data, 0xFFFFFF00 ), 8 ) * 16
-	ledge.num_points = (ledge.size / 16) - ledge.n_triangles - 1
-	ledge.triangles = {}
-	ledge.edge_lookup = {}
+    ledge.is_compact_flag = rshift( band( ledge.data, 0x0000000C ), 2 ) ~= 0
+    ledge.size = rshift( band( ledge.data, 0xFFFFFF00 ), 8 ) * 16
+    ledge.num_points = (ledge.size / 16) - ledge.n_triangles - 1
+    ledge.triangles = {}
+    ledge.edge_lookup = {}
 
-	assert(ledge.is_compact_flag, "Ledges are expected to be compact")
+    assert(ledge.is_compact_flag, "Ledges are expected to be compact")
 
     if not ledge.has_childen_flag then
         ledge.client_data = ledge.ledgetree_node_offset
@@ -233,41 +233,41 @@ local function LoadCompactLedge( ptr )
 
     seek_data( ptr + CompactLedgeSize )
 
-	local tri_base = tell_data()
-	for i=1, ledge.n_triangles do
+    local tri_base = tell_data()
+    for i=1, ledge.n_triangles do
 
-		local edge_base = tell_data() - tri_base
-		local tri = CompactTriangle()
-		tri.tri_index = band( tri.indices, 0x00000FFF )
-		tri.pierce_index = rshift( band( tri.indices, 0x00FFF000 ), 12 )
-		tri.material_index = rshift( band( tri.indices, 0x7F000000 ), 24 )
-		tri.is_virtual = band( tri.indices, 0x80000000 ) ~= 0
-		tri.indices = nil
+        local edge_base = tell_data() - tri_base
+        local tri = CompactTriangle()
+        tri.tri_index = band( tri.indices, 0x00000FFF )
+        tri.pierce_index = rshift( band( tri.indices, 0x00FFF000 ), 12 )
+        tri.material_index = rshift( band( tri.indices, 0x7F000000 ), 24 )
+        tri.is_virtual = band( tri.indices, 0x80000000 ) ~= 0
+        tri.indices = nil
 
-		for j=1, 3 do
+        for j=1, 3 do
 
-			local edge = {}
+            local edge = {}
             local indices = tri.edges[j]
-			edge.addr = edge_base
-			edge.start = band( indices, 0x0000FFFF )
-			edge.opposite = rshift( band( indices, 0x7FFF0000 ), 16 )
+            edge.addr = edge_base
+            edge.start = band( indices, 0x0000FFFF )
+            edge.opposite = rshift( band( indices, 0x7FFF0000 ), 16 )
 
-			if band( edge.opposite, 0x4000 ) ~= 0 then
-				edge.opposite = -(0x8000 - edge.opposite)
-			end
+            if band( edge.opposite, 0x4000 ) ~= 0 then
+                edge.opposite = -(0x8000 - edge.opposite)
+            end
 
-			edge.opposite = edge.addr + edge.opposite * CompactEdgeSize
-			edge.is_virtual = band( indices, 0x80000000 ) ~= 0
-			edge.indices = nil
-			edge_base = edge_base + CompactEdgeSize
-			ledge.edge_lookup[edge.addr] = edge
+            edge.opposite = edge.addr + edge.opposite * CompactEdgeSize
+            edge.is_virtual = band( indices, 0x80000000 ) ~= 0
+            edge.indices = nil
+            edge_base = edge_base + CompactEdgeSize
+            ledge.edge_lookup[edge.addr] = edge
             tri.edges[j] = edge
 
-		end
+        end
 
-		ledge.triangles[#ledge.triangles+1] = tri
+        ledge.triangles[#ledge.triangles+1] = tri
 
-	end
+    end
 
     return ledge
 
@@ -281,66 +281,66 @@ local function LoadPhysCollideCompactSurface( header, index )
     local size = header.surfaceSize
     local surf = CompactSurface()
 
-	local num_ledges = 0
-	local num_tris = 0
-	local num_nodes = 0
+    local num_ledges = 0
+    local num_tris = 0
+    local num_nodes = 0
 
-	surf.max_factor_surface_deviation = band( surf.size_and_max_surface_deviation, 0xFF )
-	surf.byte_size = rshift( band( surf.size_and_max_surface_deviation, 0xFFFFFF00 ), 8 )
-	surf.size_and_max_surface_deviation = nil
+    surf.max_factor_surface_deviation = band( surf.size_and_max_surface_deviation, 0xFF )
+    surf.byte_size = rshift( band( surf.size_and_max_surface_deviation, 0xFFFFFF00 ), 8 )
+    surf.size_and_max_surface_deviation = nil
     surf.radius_deviation = surf.max_factor_surface_deviation * (1/250) * surf.upper_limit_radius
 
-	local function WalkTo( ptr, is_node )
+    local function WalkTo( ptr, is_node )
 
         seek_data( ptr )
-		if is_node then
+        if is_node then
 
-			local out_node = {}
+            local out_node = {}
 
-			num_nodes = num_nodes + 1
+            num_nodes = num_nodes + 1
 
-			local node = CompactLedgeTreeNode()
-			if node.offset_compact_ledge ~= 0 then
-				out_node.leaf = WalkTo( ptr + node.offset_compact_ledge, false )
-			end
-			if node.offset_right_node ~= 0 then
-				out_node.left = WalkTo( ptr + CompactLedgeTreeNodeSize, true )
-				out_node.right = WalkTo( ptr + node.offset_right_node, true )
-			end
-			return out_node
+            local node = CompactLedgeTreeNode()
+            if node.offset_compact_ledge ~= 0 then
+                out_node.leaf = WalkTo( ptr + node.offset_compact_ledge, false )
+            end
+            if node.offset_right_node ~= 0 then
+                out_node.left = WalkTo( ptr + CompactLedgeTreeNodeSize, true )
+                out_node.right = WalkTo( ptr + node.offset_right_node, true )
+            end
+            return out_node
 
-		else
+        else
 
-			local ledge = LoadCompactLedge( ptr )
-			num_ledges = num_ledges + 1
-			num_tris = num_tris + ledge.n_triangles
-			return ledge
+            local ledge = LoadCompactLedge( ptr )
+            num_ledges = num_ledges + 1
+            num_tris = num_tris + ledge.n_triangles
+            return ledge
 
-		end
+        end
 
-	end
+    end
 
-	local root = WalkTo( ptr + surf.offset_ledgetree_root, true )
-	out_surface.root = root
-	out_surface.points = {}
+    local root = WalkTo( ptr + surf.offset_ledgetree_root, true )
+    out_surface.root = root
+    out_surface.points = {}
 
-	local point_addr = base + CompactSurfaceSize +
-	num_ledges * CompactLedgeSize +
-	num_tris * CompactTriangleSize
+    local point_addr = base + CompactSurfaceSize +
+    num_ledges * CompactLedgeSize +
+    num_tris * CompactTriangleSize
 
-	local point_bytes = (surf.byte_size - (point_addr - base)) - 
-	num_nodes * CompactLedgeTreeNodeSize
+    local point_bytes = (surf.byte_size - (point_addr - base)) - 
+    num_nodes * CompactLedgeTreeNodeSize
 
-	local num_points = point_bytes / CompactPolyPointSize
+    local num_points = point_bytes / CompactPolyPointSize
 
     seek_data( point_addr )
 
-	for i=1, num_points do
-		local point, w = vector32(), float32()
-		out_surface.points[#out_surface.points+1] = Pos2HL(point)
-	end
+    for i=1, num_points do
+        local point, w = vector32(), float32()
+        out_surface.points[#out_surface.points+1] = Pos2HL(point)
+    end
 
-	return out_surface
+    return out_surface
 
 end
 
@@ -430,12 +430,12 @@ end
 if SERVER then return end
 
 vcollide_mat = CreateMaterial( "vcollide_test", "UnLitGeneric", {
-	["$basetexture"] = "color/white",
-	["$model"] = 1,
-	["$translucent"] = 1,
-	["$ignorez"] = 0,
-	["$vertexcolor"] = 1,
-	["$vertexalpha"] = 1,
+    ["$basetexture"] = "color/white",
+    ["$model"] = 1,
+    ["$translucent"] = 1,
+    ["$ignorez"] = 0,
+    ["$vertexcolor"] = 1,
+    ["$vertexalpha"] = 1,
 })
 
 local mesh_begin = mesh.Begin
@@ -446,64 +446,64 @@ local mesh_advance = mesh.AdvanceVertex
 
 function DrawCompactLedge( ledge, points )
 
-	points = ledge.points or points
-	local c = ColorRand()
-	 
-	local ok = true
-	mesh_begin( MATERIAL_TRIANGLES, #ledge.triangles )
+    points = ledge.points or points
+    local c = ColorRand()
+     
+    local ok = true
+    mesh_begin( MATERIAL_TRIANGLES, #ledge.triangles )
 
-	local b,e = pcall( function()
+    local b,e = pcall( function()
 
-		for _, tri in ipairs(ledge.triangles) do
+        for _, tri in ipairs(ledge.triangles) do
 
-			for i=#tri.edges, 1, -1 do
-				
-				local p = points[tri.edges[i].start+1]
-				if p then
+            for i=#tri.edges, 1, -1 do
+                
+                local p = points[tri.edges[i].start+1]
+                if p then
 
-					mesh_position(p) 
-					mesh_color(c.r,c.g,c.b,c.a) 
-					mesh_advance()
+                    mesh_position(p) 
+                    mesh_color(c.r,c.g,c.b,c.a) 
+                    mesh_advance()
 
-				else
+                else
 
-					ok = false
+                    ok = false
 
-				end
+                end
 
-			end
-		
-		end
+            end
+        
+        end
 
-	end)
+    end)
 
-	mesh_end()
-	if not b then print(e) end
+    mesh_end()
+    if not b then print(e) end
 
 end
 
 function DrawVCollide( vcollide )
 
-	local num_ledges = 0
-	local points = nil
+    local num_ledges = 0
+    local points = nil
 
-	local function DrawNode( node )
+    local function DrawNode( node )
 
-		if node.leaf then DrawCompactLedge( node.leaf, points ) end
-		if node.left then DrawNode( node.left ) end
-		if node.right then DrawNode( node.right ) end
+        if node.leaf then DrawCompactLedge( node.leaf, points ) end
+        if node.left then DrawNode( node.left ) end
+        if node.right then DrawNode( node.right ) end
 
-	end
+    end
 
-	render.SetMaterial(vcollide_mat)
-	render.OverrideDepthEnable(true, true)
+    render.SetMaterial(vcollide_mat)
+    render.OverrideDepthEnable(true, true)
 
-	for k,solid in ipairs(vcollide) do
-		--if k == 1 then continue end
-		points = solid.points
-		DrawNode( solid.root )
-	end
+    for k,solid in ipairs(vcollide) do
+        --if k == 1 then continue end
+        points = solid.points
+        DrawNode( solid.root )
+    end
 
-	render.OverrideDepthEnable(false, false)
+    render.OverrideDepthEnable(false, false)
 
 end
