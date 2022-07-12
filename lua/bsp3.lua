@@ -62,14 +62,14 @@ LUMP_BRUSHES                         = 18 --done
 LUMP_BRUSHSIDES                      = 19 --done
 LUMP_AREAS                           = 20 --done
 LUMP_AREAPORTALS                     = 21 --done
-LUMP_UNUSED0                         = 22
-LUMP_UNUSED1                         = 23
-LUMP_UNUSED2                         = 24
-LUMP_UNUSED3                         = 25
+LUMP_UNUSED0                         = 22 --unused
+LUMP_UNUSED1                         = 23 --unused
+LUMP_UNUSED2                         = 24 --unused
+LUMP_UNUSED3                         = 25 --unused
 LUMP_DISPINFO                        = 26 --done
 LUMP_ORIGINALFACES                   = 27 --done
-LUMP_PHYSDISP                        = 28
-LUMP_PHYSCOLLIDE                     = 29
+LUMP_PHYSDISP                        = 28 --NYI
+LUMP_PHYSCOLLIDE                     = 29 --done
 LUMP_VERTNORMALS                     = 30 --done
 LUMP_VERTNORMALINDICES               = 31 --done
 LUMP_DISP_LIGHTMAP_ALPHAS            = 32 --done
@@ -334,11 +334,6 @@ end
 -- LUMP DATA HANDLERS
 lump_handlers[LUMP_ENTITIES] = function()
 
-    local vector_keys = {
-        ["origin"] = true,
-        ["mins"] = true,
-        ["maxs"] = true,
-    }
     local match_rule = [[%"([^%"]+)%"%s+%"([^%"]+)%"]]
     local entities = {}
     local current = {}
@@ -532,6 +527,71 @@ lump_handlers[LUMP_ORIGINALFACES] = faces
 lump_handlers[LUMP_FACES_HDR] = faces
 lump_handlers[LUMP_VERTNORMALS] = lump_array( vector32, 12 )
 lump_handlers[LUMP_VERTNORMALINDICES] = lump_array( uint16, 2 )
+
+lump_handlers[LUMP_PHYSCOLLIDE] = function( lump )
+
+    local solids = {}
+    local numeric_keys = {
+        ["contents"] = true,
+        ["index"] = true,
+        ["damping"] = true,
+        ["mass"] = true,
+        ["volume"] = true,
+    }
+
+    for i=1, 100 do
+
+        local modelIndex = int32()
+        local dataSize = int32()
+        local keydataSize = int32()
+        local solidCount = int32()
+
+        if dataSize > 0 then
+
+            local ptr = tell_data() + 1
+            local vcollide = str_sub( m_data, ptr, ptr + dataSize )
+            local keydata = str_sub( m_data, ptr + dataSize, ptr + dataSize + keydataSize )
+
+            local match_kv = [[%"([^%"]+)%"%s+%"([^%"]+)%"]]
+            local match_header = [[(%w+) {]]
+            local segments = {}
+            local current = nil
+            for x in lines(keydata) do
+                local h = x:match(match_header)
+                if h then
+                    current = {
+                        type = h,
+                        values = {},
+                    }
+                elseif x == "}" then
+                    segments[#segments+1] = current
+                    current = nil
+                elseif current ~= nil then
+                    local key, value = x:match(match_kv)
+                    if numeric_keys[key] then value = tonumber(value) end
+                    if key == "currentvelocity" then value = Vector(value) end
+
+                    current.values[key] = value
+                end
+            end
+
+            solids[#solids+1] = {
+                data = segments,
+                vcollide = vcollide,
+                count = solidCount,
+            }
+
+        end
+
+        seek_data( tell_data() + dataSize + keydataSize )
+
+        if dataSize <= 0 or tell_data() >= lump.length then break end
+
+    end
+
+    return solids
+
+end
 
 lump_handlers[LUMP_OCCLUSION] = function()
 
@@ -1463,6 +1523,7 @@ local function LinkBSPData( data )
     data.num_clusters = num_clusters
     data.lighting = data[LUMP_LIGHTING]
     data.pakfile = data[LUMP_PAKFILE]
+    data.physcollide = data[LUMP_PHYSCOLLIDE]
 
 end
 
