@@ -645,6 +645,34 @@ lump_handlers[LUMP_NODES] = lump_array( function()
 
 end, 32 )
 
+lump_handlers[LUMP_TEXINFO] = lump_array( function()
+
+    local tmeta = {}
+
+    local __dot = FindMetaTable("Vector").Dot
+    function tmeta:GetUV(p)
+        return __dot(p, self.uAxis) + self.uOffset, __dot(p, self.vAxis) + self.vOffset
+    end
+
+    tmeta.__index = tmeta
+
+    local function TexMatrix()
+        return setmetatable({
+            uAxis = vector32(),
+            uOffset = float32(),
+            vAxis = vector32(),
+            vOffset = float32(),
+        }, tmeta)
+    end
+
+    return {
+        textureVecs = TexMatrix(),
+        lightmapVecs = TexMatrix(),
+        flags = int32(),
+        texdata = int32(),
+    }
+
+end, 72 )
 
 local leaf_v0_array = lump_array( function()
 
@@ -1298,14 +1326,16 @@ local function LinkBSPData( data )
 
     local facelist = data[LUMP_FACES] or data[LUMP_ORIGINALFACES]
 
+    local nodes = data[LUMP_NODES] or {}
+    local leafs = data[LUMP_LEAFS] or {}
     local total = #(data[LUMP_NODES] or {})
-    for k, node in ipairs( data[LUMP_NODES] or {} ) do
+    for k, node in ipairs( nodes ) do
         node.id = k
         node.plane = data[LUMP_PLANES] and data[LUMP_PLANES][node.planenum+1]
         node.planenum = nil
 
         for i = 1, 2 do
-            node.children[i] = node.children[i] >= 0 and data[LUMP_NODES][ node.children[i]+1 ] or data[LUMP_LEAFS][ -(node.children[i]+1)+1 ]
+            node.children[i] = node.children[i] >= 0 and nodes[ node.children[i]+1 ] or leafs[ -(node.children[i]+1)+1 ]
         end
 
         node.faces = {}
@@ -1588,7 +1618,7 @@ end
 
 function meta:GetClusterLeafs( cluster )
 
-    return self.cluster_leafs[ cluster ] or self.leafs
+    return self.cluster_leafs[ cluster ]
 
 end
 
@@ -1615,6 +1645,13 @@ function meta:GetPakFiles()
 
     if self.pakfile == nil then return {} end
     return self.pakfile.file_names
+
+end
+
+function meta:PakContains( name )
+
+    if self.pakfile == nil then return false end
+    return self.pakfile.file_entries[ name ] ~= nil
 
 end
 
@@ -1646,6 +1683,17 @@ function meta:ReadPakFile( name )
         return str_data
 
     end
+
+end
+
+function meta:GetLightmapPixel( offset )
+
+    if self.lighting == nil then return 0,0,0,0 end
+    begin_data( self.lighting )
+    seek_data( offset )
+    local r,g,b,e = uint8(),uint8(),uint8(),int8()
+    end_data()
+    return r,g,b,e
 
 end
 
