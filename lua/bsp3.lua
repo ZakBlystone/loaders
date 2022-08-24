@@ -1373,6 +1373,8 @@ local function LinkBSPData( data )
 
     local num_clusters = 0
     local cluster_leafs = {}
+    local ambient_index = data[LUMP_LEAF_AMBIENT_INDEX_HDR] or data[LUMP_LEAF_AMBIENT_INDEX] or {}
+    local ambient_samples = data[LUMP_LEAF_AMBIENT_LIGHTING_HDR] or data[LUMP_LEAF_AMBIENT_LIGHTING] or {}
     for k, leaf in ipairs( data[LUMP_LEAFS] or {} ) do
         leaf.id = k
         leaf.faces = {}
@@ -1380,9 +1382,21 @@ local function LinkBSPData( data )
             leaf.faces[#leaf.faces+1] = ( data[LUMP_LEAFFACES] and data[LUMP_LEAFFACES][i] )
         end
 
+        leaf.ambient = ambient_index[k]
         leaf.brushes = {}
         for i = leaf.firstleafbrush+1, leaf.firstleafbrush + leaf.numleafbrushes do
             leaf.brushes[#leaf.brushes+1] = ( data[LUMP_LEAFBRUSHES] and data[LUMP_LEAFBRUSHES][i] )
+        end
+
+        if leaf.ambient then
+            for i = leaf.ambient.firstAmbientSample+1, leaf.ambient.firstAmbientSample + leaf.ambient.ambientSampleCount do
+                local sample = ambient_samples[i]
+                sample.pos = Vector(
+                    leaf.mins.x * (1 - sample.x/255) + leaf.maxs.x * (sample.x/255),
+                    leaf.mins.y * (1 - sample.y/255) + leaf.maxs.y * (sample.y/255),
+                    leaf.mins.z * (1 - sample.z/255) + leaf.maxs.z * (sample.z/255)
+                )
+            end
         end
 
         leaf.has_detail_brushes = false
@@ -1551,7 +1565,7 @@ local function LinkBSPData( data )
     data.vis = data[LUMP_VISIBILITY]
     data.cluster_leafs = cluster_leafs
     data.num_clusters = num_clusters
-    data.lighting = data[LUMP_LIGHTING]
+    data.lighting = data[LUMP_LIGHTING_HDR] or data[LUMP_LIGHTING]
     data.pakfile = data[LUMP_PAKFILE]
     data.physcollide = data[LUMP_PHYSCOLLIDE]
 
@@ -1565,8 +1579,23 @@ function VisBitSet( unpackedVisData, cluster )
 
 end
 
+local empty_function = function() end
 local meta = {}
 meta.__index = meta
+
+function meta:LeafAmbientSamples( leaf )
+
+    local samples = self[LUMP_LEAF_AMBIENT_LIGHTING_HDR] or self[LUMP_LEAF_AMBIENT_LIGHTING]
+    if not leaf.ambient or not samples then return empty_function end
+    local i = leaf.ambient.firstAmbientSample
+    local n = leaf.ambient.ambientSampleCount+1
+    return function()
+        n = n - 1
+        i = i + 1
+        if n ~= 0 then return samples[i] end
+    end
+
+end
 
 function meta:GetLeafAtPos( pos, node )
 
@@ -1693,7 +1722,15 @@ function meta:GetLightmapPixel( offset )
     seek_data( offset )
     local r,g,b,e = uint8(),uint8(),uint8(),int8()
     end_data()
-    return r,g,b,e
+    if r and g and b and e then
+        r = 255 * TexLightToLinear(r, e)
+        g = 255 * TexLightToLinear(g, e)
+        b = 255 * TexLightToLinear(b, e)
+        --r,g,b = CVT_ColorRGBExp32(r,g,b,e)
+        return r,g,b
+    else
+        return nil
+    end
 
 end
 
@@ -1727,3 +1764,62 @@ function LoadBSP( filename, requested_lumps, path )
     return result
 
 end
+
+-- Color correction
+local linear_to_screen = {}
+local tex_gamma_table = {}
+
+function LinearToScreenGamma( f )
+    local i = math.floor( 0.5 + math.min( math.max(f * 1023, 0), 1023 ) + 1 )
+    return linear_to_screen[i]
+end
+
+function TexLightToLinear( c, e )
+    return c * (2 ^ e) / 255
+end
+
+function BuildGammaTable( gamma, texGamma, brightness, overbright )
+
+    local g = 1 / math.min(gamma, 3)
+    local g1 = texGamma * g
+    local g3 = 0
+
+    if brightness <= 0 then 
+        g3 = 0.125
+    elseif brightness > 1.0 then
+        g3 = 0.05
+    else
+        g3 = 0.125 - (brightness*brightness) * 0.075
+    end
+
+    for i=0, 255 do
+        local inf = math.Clamp( 255 * (( i/255 ) ^ g1), 0, 255 )
+        tex_gamma_table[i+1] = inf
+    end
+
+    for i=0, 1023 do
+        local f = i/1023
+        if brightness > 1.0 then f = f * brightness end
+        if f <= g3 then
+            f = (f / g3) * 0.125
+        else
+            f = 0.125 + ((f - g3) / (1.0 - g3)) * 0.875
+        end
+
+        local inf = math.Clamp( 255 * ( f ^ g ), 0, 255 )
+        linear_to_screen[i+1] = inf
+    end
+
+end
+
+function CVT_ColorRGBExp32(r,g,b,e)
+    r = 255 * TexLightToLinear(r, e)
+    g = 255 * TexLightToLinear(g, e)
+    b = 255 * TexLightToLinear(b, e)
+    r = LinearToScreenGamma(r)
+    g = LinearToScreenGamma(g)
+    b = LinearToScreenGamma(b)
+    return r,g,b
+end
+
+BuildGammaTable(2.2, 2.2, 0, 2.0)
