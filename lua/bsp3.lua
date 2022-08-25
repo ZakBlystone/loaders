@@ -1301,6 +1301,15 @@ local function loadBSPData( handle, requested, params )
 
 end
 
+local function TriangleNormal( i0, i1, i2, positions )
+
+    local p0,p1,p2 = positions[i0], positions[i1], positions[i2]
+    local n = (p2 - p1):Cross(p2 - p0)
+    n:Normalize()
+    return n
+
+end
+
 local function LinkBSPData( data )
 
     local verts = data[LUMP_VERTEXES]
@@ -1463,6 +1472,7 @@ local function LinkBSPData( data )
         disp.firstVert = iVertex
         disp.firstTri = iTris
         disp.positions = {}
+        disp.normals = {}
         disp.alphas = {}
         disp.indices = {}
 
@@ -1482,8 +1492,8 @@ local function LinkBSPData( data )
         end
         for i=0, startidx-1 do p0,p1,p2,p3 = p1,p2,p3,p0 end
 
-        local indices, width, positions, alphas, firstVert = 
-        disp.indices, disp.width, disp.positions, disp.alphas, disp.firstVert
+        local indices, width, positions, normals, alphas, firstVert = 
+        disp.indices, disp.width, disp.positions, disp.normals, disp.alphas, disp.firstVert
 
         local min_x, min_y, min_z = math.huge, math.huge, math.huge
         local max_x, max_y, max_z = -math.huge, -math.huge, -math.huge
@@ -1512,6 +1522,7 @@ local function LinkBSPData( data )
                 pos:Add(vert.vec * vert.dist)
                 positions[#positions+1] = pos
                 alphas[#alphas+1] = vert.alpha
+                normals[#normals+1] = Vector(0,0,0)
 
                 local x,y,z = pos:Unpack()
                 min_x, max_x = math.min(min_x, x), math.max(max_x, x)
@@ -1531,7 +1542,7 @@ local function LinkBSPData( data )
             for iu = 0, width - 2 do
 
                 local idx = iv * width + iu
-                local a,b,c,d = idx, idx+1, idx+width, idx+width+1
+                local a,b,c,d = idx+1, idx+2, idx+width+1, idx+width+2
                 local w,x,y,z = d,a,d,b
                 if idx % 2 == 1 then w,x,y,z = b,b,c,d end
 
@@ -1541,11 +1552,24 @@ local function LinkBSPData( data )
                 indices[num+4] = x
                 indices[num+5] = y
                 indices[num+6] = z
+
+                local n0 = TriangleNormal(a,c,w,positions)
+                local n1 = TriangleNormal(x,y,z,positions)
+                
+                normals[a]:Add(n0)
+                normals[c]:Add(n0)
+                normals[w]:Add(n0)
+                normals[x]:Add(n1)
+                normals[y]:Add(n1)
+                normals[z]:Add(n1)
+
                 num = num + 6
 
             end
 
         end
+
+        for _,v in ipairs(normals) do v:Normalize() end
 
         assert(#disp.indices/3 == disp.numTris)
 
