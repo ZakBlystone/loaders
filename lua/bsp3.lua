@@ -362,11 +362,12 @@ end, 12 )
 
 lump_handlers[LUMP_PLANES] = lump_array( function()
 
-    return {
+    local p = {
         normal = vector32(),
         dist = float32(),
         type = int32(),
     }
+    return p
 
 end, 20 )
 
@@ -961,8 +962,9 @@ lump_handlers[LUMP_GAME_LUMP] = function(lump, params)
             if str_data == nil then print("FAILED TO DECOMPRESS GAME LUMP: " .. actualSize) end
             v.data = str_data
             v.fileofs = 0
+            v.filelen = size_bytes
         else
-            v.data = m_ptr
+            v.data = m_data
         end
         ilump = ilump + 1
     end
@@ -1312,6 +1314,10 @@ end
 
 local function LinkBSPData( data )
 
+    for k, plane in ipairs( data[LUMP_PLANES] or {} ) do
+        plane.back = data[LUMP_PLANES][ bit.bxor(k-1, 1) + 1 ]
+    end
+
     local verts = data[LUMP_VERTEXES]
     for k, edge in pairs( ( verts and data[LUMP_EDGES] ) or {} ) do
         edge[1] = verts[edge[1]+1]
@@ -1366,6 +1372,7 @@ local function LinkBSPData( data )
     end
 
     for k, brush in ipairs( ( data[LUMP_BRUSHSIDES] and data[LUMP_BRUSHES] ) or {} ) do
+        brush.id = k
         brush.sides = {}
         for i = brush.firstside+1, brush.firstside + brush.numsides do
             brush.sides[#brush.sides+1] = data[LUMP_BRUSHSIDES][i]
@@ -1607,6 +1614,8 @@ local empty_function = function() end
 local meta = {}
 meta.__index = meta
 
+function GetMetaTable() return meta end
+
 function meta:LeafAmbientSamples( leaf )
 
     local samples = self[LUMP_LEAF_AMBIENT_LIGHTING_HDR] or self[LUMP_LEAF_AMBIENT_LIGHTING]
@@ -1774,6 +1783,8 @@ function LoadBSP( filename, requested_lumps, path )
     else
         error("Unable to find: " .. tostring(filename))
     end
+
+    if result == nil then return end
 
     local finish = SysTime()
     print("LOAD BSP TOOK: " .. ((finish - start)*1000) .. "ms")
