@@ -256,7 +256,7 @@ local function char()
 end
 
 local function charstr(n)
-    local a = str_sub(m_data, m_ptr, m_ptr + n)
+    local a = str_sub(m_data, m_ptr, m_ptr + n - 1)
     m_ptr = m_ptr + n
     return a
 end
@@ -276,6 +276,15 @@ local function array_of( f, count )
         t[#t+1] = f()
     end
     return t
+
+end
+
+local function vcharstr(n)
+
+    local str = charstr(n)
+    local k = str_find(str, "\0", 0, true)
+    if k then str = str_sub(str, 1, k-1) end
+    return str
 
 end
 
@@ -935,7 +944,7 @@ lump_handlers[LUMP_GAME_LUMP] = function(lump, params)
     local count = int32()
     local lumps = {}
     for i=1, count do
-        local id = table.concat(array_of(char, 4))
+        local id = vcharstr(4)
         lumps[id] = {
             flags = uint16(),
             version = uint16(),
@@ -948,7 +957,7 @@ lump_handlers[LUMP_GAME_LUMP] = function(lump, params)
     for k,v in pairs(lumps) do
         if bit.band(v.flags, FLAG_COMPRESSED) ~= 0 then
             seek_data( v.fileofs )
-            local sig = table.concat(array_of(char, 4))
+            local sig = vcharstr(4)
             local actualSize = uint32()
             local lzmaSize = uint32()
             local props = array_of(uint8, 5)
@@ -986,14 +995,13 @@ lump_handlers[LUMP_GAME_LUMP] = function(lump, params)
 
         local num_entries = int32()
         local dict = {}
-        for i=1, num_entries do dict[#dict+1] = table.concat( array_of(char, 128) ) end
+        for i=1, num_entries do dict[#dict+1] = vcharstr(128) end
 
         local num_entries = int32()
         local leaf_dict = {}
         for i=1, num_entries do leaf_dict[#leaf_dict+1] = uint16() end
 
         local count = int32()
-        local props = {}
         for i=1, count do
             local prop = structure()
             prop.model = dict[ prop.proptype + 1 ]
@@ -1017,7 +1025,7 @@ lump_handlers[LUMP_GAME_LUMP] = function(lump, params)
 
         local num_entries = int32()
         local dict = {}
-        for i=1, num_entries do dict[#dict+1] = table.concat( array_of(char, 128) ) end
+        for i=1, num_entries do dict[#dict+1] = vcharstr(128) end
 
         detail_models = dict
 
@@ -1117,7 +1125,7 @@ lump_handlers[LUMP_PAKFILE] = function(lump)
             assert(extrafieldlen == 0)
             --assert(compressed == uncompressed)
 
-            local name = table.concat( array_of( char, namelen ) )
+            local name = vcharstr( namelen )
             local data_ofs = tell_data()
             seek_data( data_ofs + compressed )
 
@@ -1251,7 +1259,7 @@ local function loadBSPData( handle, requested, params )
 
         if lump.uncompressedSize ~= 0 then
             begin_data( lump_data[lump_id] )
-            local sig = table.concat(array_of(char, 4))
+            local sig = vcharstr(4)
             local actualSize = uint32()
             local lzmaSize = uint32()
             local props = array_of(uint8, 5)
