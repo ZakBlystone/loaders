@@ -32,13 +32,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ]]
 
-local BSP3_VERSION = 1
-
-if bsp3 ~= nil and bsp3.VERSION > BSP3_VERSION then return end
-
-module("bsp3", package.seeall)
-
-VERSION = BSP3_VERSION
+AddCSLuaFile()
+local __lib = alchemy.MakeLib({
+    using = {
+        include("alchemy/common/datareader.lua"),
+    },
+})
 
 LUMP_ENTITIES                        = 0  --done
 LUMP_PLANES                          = 1  --done
@@ -171,122 +170,11 @@ local lump_names = {
 
 local lump_size = 16
 local header_size = 12 + lump_size * 64
+local lshift, rshift, band, bor, bnot = bit.lshift, bit.rshift, bit.band, bit.bor, bit.bnot
 local str_byte = string.byte
 local str_sub = string.sub
 local str_find = string.find
 local str_char = string.char
-local lshift, rshift, band, bor, bnot = bit.lshift, bit.rshift, bit.band, bit.bor, bit.bnot
-local m_ptr = 1
-local m_data = nil
-
-local function begin_data( data )
-    m_data, m_ptr = data, 1
-end
-
-local function end_data()
-    m_data = nil
-end
-
-local function seek_data( pos )
-    m_ptr = pos + 1
-end
-
-local function tell_data()
-    return m_ptr - 1
-end
-
-local function float32()
-    local a,b,c,d = str_byte(m_data, m_ptr, m_ptr + 4)
-    m_ptr = m_ptr + 4
-    local fr = bor( lshift( band(c, 0x7F), 16), lshift(b, 8), a )
-    local exp = bor( band( d, 0x7F ) * 2, rshift( c, 7 ) )
-    if exp == 0 then return 0 end
-
-    local s = d > 127 and -1 or 1
-    local n = math.ldexp( ( math.ldexp(fr, -23) + 1 ) * s, exp - 127 )
-    return n
-end
-
-local function uint32()
-    local a,b,c,d = str_byte(m_data, m_ptr, m_ptr + 4)
-    m_ptr = m_ptr + 4
-    local n = bor( lshift(d,24), lshift(c,16), lshift(b, 8), a )
-    if n < 0 then n = (0x1p32) - 1 - bnot(n) end
-    return n
-end
-
-local function uint16()
-    local a,b = str_byte(m_data, m_ptr, m_ptr + 2)
-    m_ptr = m_ptr + 2
-    return bor( lshift(b, 8), a )
-end
-
-local function uint8()
-    local a = str_byte(m_data, m_ptr, m_ptr)
-    m_ptr = m_ptr + 1
-    return a
-end
-
-local function int32()
-    local a,b,c,d = str_byte(m_data, m_ptr, m_ptr + 4)
-    m_ptr = m_ptr + 4
-    local n = bor( lshift(d,24), lshift(c,16), lshift(b, 8), a )
-    return n
-end
-
-local function int16()
-    local a,b = str_byte(m_data, m_ptr, m_ptr + 2)
-    m_ptr = m_ptr + 2
-    local n = bor( lshift(b, 8), a )
-    if band( b, 0x80 ) ~= 0 then n = -(0x1p16) + n end
-    return n
-end
-
-local function int8()
-    local a = str_byte(m_data, m_ptr, m_ptr)
-    m_ptr = m_ptr + 1
-    if band( a, 0x80 ) ~= 0 then a = -(0x100) + a end
-    return a
-end
-
-local function char()
-    local a = str_sub(m_data, m_ptr, m_ptr)
-    m_ptr = m_ptr + 1
-    return a
-end
-
-local function charstr(n)
-    local a = str_sub(m_data, m_ptr, m_ptr + n - 1)
-    m_ptr = m_ptr + n
-    return a
-end
-
-local function vector32()
-    return Vector( float32(), float32(), float32() )
-end
-
-local function angle32()
-    return Angle( float32(), float32(), float32() )
-end
-
-local function array_of( f, count )
-
-    local t = {}
-    for i=1, count do
-        t[#t+1] = f()
-    end
-    return t
-
-end
-
-local function vcharstr(n)
-
-    local str = charstr(n)
-    local k = str_find(str, "\0", 0, true)
-    if k then str = str_sub(str, 1, k-1) end
-    return str
-
-end
 
 local function lump_array( func, element_size )
 
@@ -303,10 +191,6 @@ local function lump_array( func, element_size )
 
     end
 
-end
-
-local function str_int32(x)
-    return str_char( band(x,0xFF), band(rshift(x, 8),0xFF), band(rshift(x, 16),0xFF), rshift(x, 24) )
 end
 
 local function ColorRGBExp32()
@@ -346,7 +230,7 @@ lump_handlers[LUMP_ENTITIES] = function()
     local match_rule = [[%"([^%"]+)%"%s+%"([^%"]+)%"]]
     local entities = {}
     local current = {}
-    for x in lines(m_data) do
+    for x in lines(get_data()) do
         if x == "{" then current.id = #entities+1 continue end
         if x == "}" then
             entities[#entities+1] = current
@@ -465,7 +349,7 @@ lump_handlers[LUMP_FACE_MACRO_TEXTURE_INFO] = lump_array( uint16, 2 )
 
 -- Don't unpack lightmaps, slow to load + lots of memory overhead (1 byte -> 8 bytes )
 -- Instead index directly into the string
-lump_handlers[LUMP_LIGHTING] = function() return m_data end --[[lump_array( function()
+lump_handlers[LUMP_LIGHTING] = function() return get_data() end --[[lump_array( function()
 
     return { uint8(), uint8(), uint8(), int8() }
 
@@ -559,8 +443,8 @@ lump_handlers[LUMP_PHYSCOLLIDE] = function( lump )
         if dataSize > 0 then
 
             local ptr = tell_data() + 1
-            local vcollide = str_sub( m_data, ptr, ptr + dataSize )
-            local keydata = str_sub( m_data, ptr + dataSize, ptr + dataSize + keydataSize )
+            local vcollide = str_sub( get_data(), ptr, ptr + dataSize )
+            local keydata = str_sub( get_data(), ptr + dataSize, ptr + dataSize + keydataSize )
 
             local match_kv = [[%"([^%"]+)%"%s+%"([^%"]+)%"]]
             local match_header = [[(%w+) {]]
@@ -843,8 +727,8 @@ lump_handlers[LUMP_DISPINFO] = lump_array( function()
 end, 176 )
 
 -- Array of bytes, index into string if needed
-lump_handlers[LUMP_DISP_LIGHTMAP_ALPHAS] = function() return m_data end
-lump_handlers[LUMP_DISP_LIGHTMAP_SAMPLE_POSITIONS] = function() return m_data end
+lump_handlers[LUMP_DISP_LIGHTMAP_ALPHAS] = function() return get_data() end
+lump_handlers[LUMP_DISP_LIGHTMAP_SAMPLE_POSITIONS] = function() return get_data() end
 lump_handlers[LUMP_DISP_VERTS] = lump_array( function()
 
     return {
@@ -973,7 +857,7 @@ lump_handlers[LUMP_GAME_LUMP] = function(lump, params)
             v.fileofs = 0
             v.filelen = size_bytes
         else
-            v.data = m_data
+            v.data = get_data()
         end
         ilump = ilump + 1
     end
@@ -1146,7 +1030,7 @@ lump_handlers[LUMP_PAKFILE] = function(lump)
     return {
         file_names = file_names,
         file_entries = file_entries,
-        data = m_data,
+        data = get_data(),
     }
 
 end
@@ -1162,7 +1046,7 @@ lump_handlers[LUMP_VISIBILITY] = function()
         pas[i] = int32()
     end
 
-    local data = m_data
+    local data = get_data()
     local cluster_bytes = {}
     local function cluster_vis( cluster, visType )
 
@@ -1866,3 +1750,5 @@ function CVT_ColorRGBExp32(r,g,b,e)
 end
 
 BuildGammaTable(2.2, 2.2, 0, 2.0)
+
+return __lib

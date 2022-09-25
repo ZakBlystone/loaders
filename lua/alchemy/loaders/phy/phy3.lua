@@ -32,13 +32,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ]]
 
-local PHY3_VERSION = 1
-
-if phy3 ~= nil and phy3.VERSION > PHY3_VERSION then return end
-
-module("phy3", package.seeall)
-
-VERSION = PHY3_VERSION
+AddCSLuaFile()
+local __lib = alchemy.MakeLib()
 
 COLLIDE_POLY = 0
 COLLIDE_MOPP = 1
@@ -507,3 +502,5 @@ function DrawVCollide( vcollide )
     render.OverrideDepthEnable(false, false)
 
 end
+
+return __lib

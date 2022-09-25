@@ -1,7 +1,5 @@
 if true then return end
 
-include("bsp3.lua")
-
 function AtlasPacker(w, h)
 
     local free = { x=0, y=0, w=w, h=h }
@@ -39,7 +37,7 @@ end
 if CLIENT then
 
     local LIGHTMAP_PAGE_SIZE = 1024
-    if true then return end
+    --if true then return end
 
     for _, m in ipairs(G_BSP_MESHES or {}) do m:Destroy() end
     G_BSP_MESHES = {}
@@ -47,10 +45,14 @@ if CLIENT then
     local map_name = game.GetMap()
     --map_name = "gm_fork"
     --map_name = "gm_testarea"
-    --map_name = "ctf_2fort"
+    map_name = "ctf_2fort"
     --map_name = "gm_genesis"
     --map_name = "gm_flatgrass"
-    map_name = "gm_construct"
+    --map_name = "gm_construct"
+
+    include("alchemy_toolkit.lua")
+    alchemy.Init()
+    local bsp3 = alchemy.Loader("bsp")
 
     local bsp_data = bsp3.LoadBSP( "maps/" .. map_name .. ".bsp", {
         bsp3.LUMP_PLANES,

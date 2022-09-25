@@ -1,10 +1,8 @@
+include("alchemy_toolkit.lua")
+
 if true then return end
 
-AddCSLuaFile("bsp3.lua")
-AddCSLuaFile("phy3.lua")
-
-include("bsp3.lua")
-include("phy3.lua")
+local bsp3 = alchemy.Loader("bsp")
 
 if CLIENT then
 
@@ -27,10 +25,6 @@ if CLIENT then
 	}
 	
 	local bsp_data = bsp3.LoadBSP( "maps/" .. game.GetMap() .. ".bsp", requested_lumps )
-
-
-
-
 
     if true then return end
 

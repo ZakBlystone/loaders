@@ -32,15 +32,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ]]
 
-if SERVER then AddCSLuaFile() return end
+AddCSLuaFile()
+local __lib = alchemy.MakeLib({
+    using = {
+        include("alchemy/common/datareader.lua"),
+        include("vtx.lua"),
+        include("vvd.lua"),
+    },
+})
 
-local MDL3_VERSION = 1
-
-if mdl3 ~= nil and mdl3.VERSION > MDL3_VERSION then return end
-
-module("mdl3", package.seeall)
-
-VERSION = MDL3_VERSION
+local lshift, rshift, band, bor, bnot = bit.lshift, bit.rshift, bit.band, bit.bor, bit.bnot
 
 STUDIO_CONST	= 1	-- get float
 STUDIO_FETCH1	= 2	-- get Flexcontroller value
@@ -121,550 +122,7 @@ JIGGLE_HAS_ANGLE_CONSTRAINT	    = 0x10
 JIGGLE_HAS_LENGTH_CONSTRAINT    = 0x20
 JIGGLE_HAS_BASE_SPRING			= 0x40
 
-MAX_NUM_LODS = 8
-MAX_NUM_BONES_PER_VERT = 3
-
--- Strip flags
-STRIP_IS_TRILIST = 1
-STRIP_IS_TRISTRIP = 2
-
--- Stripgroup flags
-STRIPGROUP_IS_FLEXED = 0x01
-STRIPGROUP_IS_HWSKINNED = 0x02
-STRIPGROUP_IS_DELTA_FLEXED = 0x04
-STRIPGROUP_SUPPRESS_HW_MORPH = 0x08
-
--- Mesh flags
-MESH_IS_TEETH = 0x01
-MESH_IS_EYES = 0x02
-
-local str_byte = string.byte
-local str_sub = string.sub
-local str_find = string.find
-local str_char = string.char
-local lshift, rshift, band, bor, bnot = bit.lshift, bit.rshift, bit.band, bit.bor, bit.bnot
-local m_ptr = 1
-local m_data = nil
-local m_stack = nil
-local m_coverage = nil
-local m_size = 0
-local m_active_span = nil
-local m_array_spans = {}
-
-local function coverage_data( start, stop )
-    for i=start, stop do
-        m_coverage[i] = true
-    end
-end
-
-local function begin_data( data )
-    m_data, m_ptr, m_stack, m_coverage = data, 1, {}, {}
-end
-
-local function open_data( filename, path )
-    local f = file.Open(filename, "rb", path or "GAME")
-    local size = f:Size()
-    local data = f:Read(size)
-    m_size = size
-    m_array_spans = {}
-    f:Close()
-    print("OPEN: '" .. filename .. "' " .. size .. " bytes")
-    begin_data(data)
-end
-
-local function dump_data( first, last )
-
-    local c0 = Color(160, 160, 160)
-    local c1 = Color(100, 230, 250)
-    local c2 = Color(200, 130, 150)
-    local row = "0x%0.4x: "
-    local col = "%0.2x "
-    local newline = "\n"
-    local separator = ": "
-    local separator2 = " : "
-
-    local function printable(b)
-        if b >= 32 and b <= 125 then return string.char(b) else return "." end
-    end
-
-    local num = last-first
-    local rnum = num
-    if num % 16 ~= 0 then
-        num = num + (16 - num % 16)
-    end
-
-    if name then MsgC( color_white, name .. ":\n" ) end
-
-    for r = 0, math.floor(num / 16)-1 do
-        local offset = first + r*16
-        MsgC( c0, row:format( offset ) )
-
-        for c = 0, math.min(rnum-1, 15) do
-
-            local b = str_byte(m_data[offset+c])
-            if c == 8 then MsgC(c0, separator) end
-            MsgC( b and c1 or c2, b and col:format( str_byte(m_data[offset+c]) or 0 ) or "-- " )
-
-        end
-
-        MsgC( c0, "| " )
-
-        for c = 0, math.min(rnum-1, 15) do
-
-            local b = str_byte(m_data[offset+c])
-            if c == 8 then MsgC(c0, separator2) end
-            MsgC( c1, b and printable( str_byte(m_data[offset+c]) or 0 ) or " " )
-
-        end
-
-        MsgC(c0, newline)
-        rnum = rnum - 16
-
-    end
-
-end
-
-local function end_data()
-    local spans = {}
-    local span = nil
-    for i=1, m_size do
-        if not m_coverage[i] then
-            if span == nil then span = i end
-        else
-            if span ~= nil then 
-                spans[#spans+1] = {span, i}
-                span = nil
-            end
-        end
-    end
-
-    --[[for _, s in ipairs(spans) do
-        print("SPAN: " .. (s[2] - s[1]) )
-        dump_data(s[1], s[2])
-    end]]
-
-    --PrintTable(spans)
-    m_data = nil
-end
-
-local function seek_data( pos )
-    m_ptr = pos + 1
-end
-
-local function tell_data()
-    return m_ptr - 1
-end
-
-local function push_data(addr)
-    m_stack[#m_stack+1] = tell_data()
-    seek_data(addr)
-end
-
-local function pop_data()
-    local n = #m_stack
-    seek_data(m_stack[n])
-    m_stack[n] = nil
-end
-
-local function uint32()
-    coverage_data(m_ptr, m_ptr+4)
-    local a,b,c,d = str_byte(m_data, m_ptr, m_ptr + 4)
-    m_ptr = m_ptr + 4
-    local n = bor( lshift(d,24), lshift(c,16), lshift(b, 8), a )
-    if n < 0 then n = (0x1p32) - 1 - bnot(n) end
-    return n
-end
-
-local function uint16()
-    coverage_data(m_ptr, m_ptr+2)
-    local a,b = str_byte(m_data, m_ptr, m_ptr + 2)
-    m_ptr = m_ptr + 2
-    return bor( lshift(b, 8), a )
-end
-
-local function uint8()
-    coverage_data(m_ptr, m_ptr)
-    local a = str_byte(m_data, m_ptr, m_ptr)
-    m_ptr = m_ptr + 1
-    return a
-end
-
-local function int32()
-    coverage_data(m_ptr, m_ptr+4)
-    local a,b,c,d = str_byte(m_data, m_ptr, m_ptr + 4)
-    m_ptr = m_ptr + 4
-    local n = bor( lshift(d,24), lshift(c,16), lshift(b, 8), a )
-    return n
-end
-
-local function int16()
-    coverage_data(m_ptr, m_ptr+2)
-    local a,b = str_byte(m_data, m_ptr, m_ptr + 2)
-    m_ptr = m_ptr + 2
-    local n = bor( lshift(b, 8), a )
-    if band( b, 0x80 ) ~= 0 then n = -(0x1p16) + n end
-    return n
-end
-
-local function int8()
-    coverage_data(m_ptr, m_ptr)
-    local a = str_byte(m_data, m_ptr, m_ptr)
-    m_ptr = m_ptr + 1
-    if band( a, 0x80 ) ~= 0 then a = -(0x100) + a end
-    return a
-end
-
-local function char()
-    coverage_data(m_ptr, m_ptr)
-    local a = str_sub(m_data, m_ptr, m_ptr)
-    m_ptr = m_ptr + 1
-    return a
-end
-
-local function charstr(n)
-    coverage_data(m_ptr, m_ptr + n)
-    local a = str_sub(m_data, m_ptr, m_ptr + n - 1)
-    m_ptr = m_ptr + n
-    return a
-end
-
-local function float16()
-    local v = uint16()
-    local mantissa = band( v, 0x3FF )
-    local exp = band( rshift(v, 10), 0x1F )
-    local sgn = band( rshift(v, 15), 0x01 ) and -1 or 1
-
-    mantissa = lshift(mantissa, 23-10)
-    local _exp = (exp - 15) * (exp ~= 0 and 1 or 0)
-    return math.ldexp( (math.ldexp(mantissa, -23) + 1) * sgn, _exp )
-end
-
-local function float32()
-    coverage_data(m_ptr, m_ptr + 4)
-    local a,b,c,d = str_byte(m_data, m_ptr, m_ptr + 4)
-    m_ptr = m_ptr + 4
-    local fr = bor( lshift( band(c, 0x7F), 16), lshift(b, 8), a )
-    local exp = bor( band( d, 0x7F ) * 2, rshift( c, 7 ) )
-    if exp == 0 then return 0 end
-
-    local s = d > 127 and -1 or 1
-    local n = math.ldexp( ( math.ldexp(fr, -23) + 1 ) * s, exp - 127 )
-    return n
-end
-
-local function vector32()
-    return Vector( float32(), float32(), float32() )
-end
-
-local function vector48()
-    return Vector( float16(), float16(), float16() )
-end
-
-local function angle32()
-    return Angle( float32(), float32(), float32() )
-end
-
-local function matrix3x4()
-    return Matrix({
-        {float32(), float32(), float32(), float32()},
-        {float32(), float32(), float32(), float32()},
-        {float32(), float32(), float32(), float32()},
-        {0,0,0,1},
-    })
-end
-
-local quat_meta = {}
-quat_meta.__index = quat_meta
-
-function quat_meta:Angle()
-
-    local q = self
-    local fx, fy, fz, rx, ry, rz, ux, uy, uz
-    fx = 1.0 - 2.0 * q.y * q.y - 2.0 * q.z * q.z;
-	fy = 2.0 * q.x * q.y + 2.0 * q.w * q.z;
-	fz = 2.0 * q.x * q.z - 2.0 * q.w * q.y;
-	rx = 2.0 * q.x * q.y - 2.0 * q.w * q.z;
-	ry = 1.0 - 2.0 * q.x * q.x - 2.0 * q.z * q.z;
-	rz = 2.0 * q.y * q.z + 2.0 * q.w * q.x;
-	ux = 2.0 * q.x * q.z + 2.0 * q.w * q.y;
-	uy = 2.0 * q.y * q.z - 2.0 * q.w * q.x;
-	uz = 1.0 - 2.0 * q.x * q.x - 2.0 * q.y * q.y;
-
-    local xyDist = math.sqrt( fx * fx + fy * fy );
-	local angle = Angle()
-
-	if xyDist > 0.001 then
-		angle.y = math.atan2( fy, fx ) * 57.3
-		angle.p = math.atan2( -fz, xyDist ) * 57.3
-		angle.r = math.atan2( rz, uz ) * 57.3
-	else
-		angle.y = math.atan2( -rx, ry ) * 57.3
-		angle.p = math.atan2( -fz, xyDist ) * 57.3
-		angle.r = 0
-	end
-
-    return angle
-
-end
-
-function quat_meta:RotateVector(v)
-
-    local x,y,z = v:Unpack()
-    local q = self
-	local x2 = 2 * x
-	local y2 = 2 * y
-	local z2 = 2 * z
-	local ww = q.w * q.w - 0.5
-	local dot2 = (q.x * x2 + q.y * y2 + q.z * z2)
-
-	return Vector(
-		x2 * ww + (q.y * z2 - q.z * y2) * q.w + q.x * dot2,
-		y2 * ww + (q.z * x2 - q.x * z2) * q.w + q.y * dot2,
-		z2 * ww + (q.x * y2 - q.y * x2) * q.w + q.z * dot2
-	)
-
-end
-
-function quat_meta:Blend( other, t, dst )
-
-	other = self:QuaternionAlign( other )
-
-	local sclp = 1.0 - t
-	local sclq = t
-    dst.x = (1-t) * self.x + t * other.x
-    dst.y = (1-t) * self.y + t * other.y
-    dst.z = (1-t) * self.z + t * other.z
-    dst.w = (1-t) * self.w + t * other.w
-
-	qt:Normalize()
-	return qt
-
-end
-
-function quat_meta:Dot(b)
-
-	local a = self
-	return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w
-
-end
-
-function quat_meta:Normalize()
-
-	local radius = self:Dot(self)
-	if radius ~= 0 then
-		radius = math.sqrt(radius);
-		local iradius = 1.0/radius;
-		self.x = self.x * iradius;
-		self.y = self.y * iradius;
-		self.z = self.z * iradius;
-		self.w = self.w * iradius;
-	end
-	return radius
-
-end
-
-local function quat()
-
-    return setmetatable( {
-        x = 0,
-        y = 0,
-        z = 0,
-        w = 0,
-    }, quat_meta)
-
-end
-
-local function quat128()
-
-    return setmetatable( {
-        x = float32(),
-        y = float32(),
-        z = float32(),
-        w = float32(),
-    }, quat_meta)
-
-end
-
-local NAN = 0/0
-local function quat64()
-
-    --x,y,z: 21, w: 1
-    --LO: yyyy yyyy yyyx xxxx | xxxx xxxx xxxx xxxx
-    --HI: wzzz zzzz zzzz zzzz | zzzz zzyy yyyy yyyy
-
-    local lo = uint32()
-    local hi = uint32()
-    local x = band( lo, 0x1FFFFF )
-    local y = bor( band( rshift(lo, 21), 0x7FF), lshift( band(hi, 0x3FF), 11) )
-    local z = band( rshift(hi, 10), 0x1FFFFF )
-    local w = 0
-    local ws = band( hi, 0x80000000 ) ~= 0 and -1 or 1
-
-    x = (x - 1048576) * (1 / 1048576.5)
-    y = (y - 1048576) * (1 / 1048576.5)
-    z = (z - 1048576) * (1 / 1048576.5)
-    w = math.sqrt( 1 - x*x - y*y - z*z) * ws
-    assert(w == w, "Invalid Quat:" .. table.concat({x,y,z,w}, ','))
-
-    return setmetatable( {
-        x = x,
-        y = y,
-        z = z,
-        w = w,
-        is64 = true,
-    }, quat_meta)
-
-end
-
-local function quat48()
-
-    local x = uint16()
-    local y = uint16()
-    local z = uint16()
-    local w = 0
-    local ws = band(z, 0x8000) ~= 0 and -1 or 1
-
-    z = band(z, 0x7FFF)
-
-    x = (x - 32768) * (1 / 32768)
-    y = (y - 32768) * (1 / 32768)
-    z = (z - 16384) * (1 / 16384)
-    w = math.sqrt( 1 - x*x - y*y - z*z) * ws
-    assert(w == w, "Invalid Quat:" .. table.concat({x,y,z,w}, ','))
-
-    return setmetatable( {
-        x = x,
-        y = y,
-        z = z,
-        w = w,
-    }, quat_meta)
-
-end
-
-local function array_of( f, count )
-
-    local t = {}
-    for i=1, count do
-        t[#t+1] = f()
-    end
-    return t
-
-end
-
-local function nullstr()
-
-    local k = str_find(m_data, "\0", m_ptr, true)
-    if k then 
-        coverage_data(m_ptr, k)
-        local str = str_sub(m_data, m_ptr, k-1)
-        m_ptr = k
-        return str
-    end
-
-end
-
-local function vcharstr(n)
-
-    local str = charstr(n)
-    local k = str_find(str, "\0", 0, true)
-    if k then 
-        str = str_sub(str, 1, k-1)
-    end
-    return str
-
-end
-
-local function mdl_array( dtype )
-
-    return {
-        num = int32(),
-        offset = int32(),
-        dtype = dtype,
-    }
-
-end
-
-local m_span = {} m_span.__index = m_span
-function m_span:Stop()
-    self[2] = tell_data()
-    m_array_spans[#m_array_spans+1] = self
-    m_active_span = self[4]
-end
-local function mdl_span( name )
-    local span = setmetatable({
-        [1] = tell_data(),
-        [3] = name,
-        [4] = m_active_span,
-    }, m_span)
-    m_active_span = span
-    local k, s = 1, m_active_span[4]
-    while s do
-        k = k + 1
-        s = s[4]
-    end
-    m_active_span[5] = k
-    return span
-end
-
-local function mdl_loadarray( tbl, base, field, aux, ... )
-
-    local arr = aux or tbl[field]
-    if not arr.offset then return end
-    local data = {}
-
-    local num, offset = arr.num, arr.offset
-    local dtype = arr.dtype
-
-    arr.num = nil
-    arr.offset = nil
-    arr.dtype = nil
-
-    push_data(base + offset)
-    local span = mdl_span(field)
-
-    for i=1, num do
-        local obj = dtype(...)
-        arr[#arr+1] = obj
-    end
-
-    span:Stop()
-    pop_data()
-
-end
-
-local function mdl_loadname( tbl, base, field, num )
-
-    field = field or "nameidx"
-    local newfield = field:gsub("idx", "")
-
-    if tbl[field] == 0 then
-        tbl[newfield] = ""
-        tbl[field] = nil
-        if tbl[num] then tbl[num] = nil end
-        return
-    end
-
-    if num and tbl[num] == 0 then
-        tbl[newfield] = ""
-        tbl[field] = nil
-        tbl[num] = nil
-        return
-    end
-
-    push_data(base + tbl[field])
-    local span = mdl_span("name: ")
-    tbl[newfield] = nullstr()
-    span[3] = "name: " .. tostring(tbl[newfield])
-    span:Stop()
-    pop_data()
-    
-    --print("'" .. tbl[newfield] .. "' AT: " .. ("0x%x"):format(base + tbl[field]))
-
-    tbl[field] = nil
-
-    if tbl[num] then tbl[num] = nil end
-
-end
+local m_version = 0
 
 local function mdl_axisinterpbone()
 
@@ -693,10 +151,10 @@ local function mdl_quatinterpbone()
     local base = tell_data()
     local quatinterp = {
         control = int32(),
-        triggers = mdl_array(mdl_quatinterpinfo),
+        triggers = indirect_array(mdl_quatinterpinfo),
     }
 
-    mdl_loadarray(quatinterp, base, "triggers")
+    load_indirect_array(quatinterp, base, "triggers")
 
     return quatinterp
 
@@ -791,8 +249,8 @@ local function mdl_bone()
     pop_data()
 
     array_of(int32, 8) -- unused
-    mdl_loadname(bone, base)
-    mdl_loadname(bone, base, "surfacepropidx")
+    indirect_name(bone, base)
+    indirect_name(bone, base, "surfacepropidx")
 
     return bone
 
@@ -829,7 +287,7 @@ local function mdl_hitbox()
     array_of(int32, 8) -- unused
 
     if bbox.nameidx ~= 0 then
-        mdl_loadname(bbox, base)
+        indirect_name(bbox, base)
     end
 
     return bbox
@@ -841,11 +299,11 @@ local function mdl_hitboxset()
     local base = tell_data()
     local set = {
         nameidx = int32(),
-        hitboxes = mdl_array(mdl_hitbox),
+        hitboxes = indirect_array(mdl_hitbox),
     }
 
-    mdl_loadname(set, base)
-    mdl_loadarray(set, base, "hitboxes")
+    indirect_name(set, base)
+    load_indirect_array(set, base, "hitboxes")
 
     return set
 
@@ -949,14 +407,14 @@ local function mdl_animdesc()
         fps = float32(),
         flags = int32(),
         numframes = int32(),
-        movements = mdl_array(mdl_movement),
+        movements = indirect_array(mdl_movement),
         _unused1 = array_of(int32, 6),
         animblock = int32(),
         animindex = int32(),
         numikrules = int32(),
         ikruleindex = int32(),
         animblockikruleindex = int32(),
-        localhierarchy = mdl_array(mdl_localhierarchy),
+        localhierarchy = indirect_array(mdl_localhierarchy),
         sectionindex = int32(),
         sectionframes = int32(),
         zeroframespan = int16(),
@@ -965,16 +423,16 @@ local function mdl_animdesc()
         zeroframestalltime = float32(),
     }
 
-    mdl_loadname(anim, base)
+    indirect_name(anim, base)
 
-    mdl_loadarray(anim, base, "movements")
-    mdl_loadarray(anim, base, "localhierarchy")
+    load_indirect_array(anim, base, "movements")
+    load_indirect_array(anim, base, "localhierarchy")
 
     if anim.sectionframes ~= 0 then
         local sections = {}
         local num = math.floor(anim.numframes / anim.sectionframes) + 2
         push_data(base + anim.sectionindex)
-        local span = mdl_span("section")
+        local span = span_data("section")
         for i=1, num do
             sections[#sections+1] = mdl_animsection()
         end
@@ -998,7 +456,7 @@ local function mdl_event()
         nameidx = int32(),
     }
 
-    mdl_loadname(event, base)
+    indirect_name(event, base)
 
     return event
 
@@ -1040,7 +498,7 @@ local function mdl_activitymodifier()
         nameidx = int32(),
     }
 
-    mdl_loadname(actmod, base)
+    indirect_name(actmod, base)
 
     return actmod
 
@@ -1057,7 +515,7 @@ local function mdl_seqdesc()
         flags = int32(),
         activity = int32(),
         actweight = int32(),
-        events = mdl_array(mdl_event),
+        events = indirect_array(mdl_event),
         bbmin = vector32(),
         bbmax = vector32(),
         numblends = int32(),
@@ -1079,25 +537,28 @@ local function mdl_seqdesc()
         nextseq = int32(),
         pose = int32(),
         numikrules = int32(),
-        autolayers = mdl_array(mdl_autolayer),
+        autolayers = indirect_array(mdl_autolayer),
         weightlistindex = int32(),
         posekeyindex = int32(),
-        iklocks = mdl_array(mdl_iklock),
+        iklocks = indirect_array(mdl_iklock),
         keyvalueindex = int32(),
         keyvaluesize = int32(),
         cycleposeindex = int32(),
-        activitymodifiers = mdl_array(mdl_activitymodifier),
+        activitymodifiers = indirect_array(mdl_activitymodifier, true),
     }
 
     array_of(int32, 5) -- unused
 
-    mdl_loadname(seq, base, "labelidx")
-    mdl_loadname(seq, base, "actnameidx")
+    indirect_name(seq, base, "labelidx")
+    indirect_name(seq, base, "actnameidx")
 
-    mdl_loadarray(seq, base, "events")
-    mdl_loadarray(seq, base, "autolayers")
-    mdl_loadarray(seq, base, "iklocks")
-    mdl_loadarray(seq, base, "activitymodifiers")
+    load_indirect_array(seq, base, "events")
+    load_indirect_array(seq, base, "autolayers")
+    load_indirect_array(seq, base, "iklocks")
+
+    if m_version >= 49 then
+        load_indirect_array(seq, base, "activitymodifiers")
+    end
 
     --PrintTable(seq)
 
@@ -1117,7 +578,7 @@ local function mdl_texture()
 
     array_of(int32, 12) -- unused
 
-    mdl_loadname(tex, base)
+    indirect_name(tex, base)
 
     return tex
 
@@ -1128,7 +589,7 @@ local function mdl_cdtexture()
     local base = tell_data()
     local cdtex = { nameidx = int32(), }
 
-    mdl_loadname(cdtex, 0)
+    indirect_name(cdtex, 0)
 
     return cdtex.name
 
@@ -1164,7 +625,7 @@ local function mdl_mesh()
         modelindex = int32(),
         numvertices = int32(),
         vertexoffset = int32(),
-        flexes = mdl_array(mdl_flex),
+        flexes = indirect_array(mdl_flex),
         materialtype = int32(),
         materialparam = int32(),
         meshid = int32(),
@@ -1174,7 +635,7 @@ local function mdl_mesh()
     array_of(int32, 17) -- unused
 
     mesh.modelindex = mesh.modelindex + base
-    mdl_loadarray(mesh, base, "flexes")
+    load_indirect_array(mesh, base, "flexes")
 
     return mesh
 
@@ -1219,19 +680,19 @@ local function mdl_model()
         name = vcharstr(64),
         type = int32(),
         boundingradius = float32(),
-        meshes = mdl_array(mdl_mesh),
+        meshes = indirect_array(mdl_mesh),
         numvertices = int32(),
         vertexindex = int32(),
         tangentsindex = int32(),
         numattachments = int32(),
         attachmentindex = int32() + base,
-        eyeballs = mdl_array(mdl_eyeball),
+        eyeballs = indirect_array(mdl_eyeball),
     }
 
     array_of(int32, 10) -- unused
 
-    mdl_loadarray(model, base, "meshes")
-    mdl_loadarray(model, base, "eyeballs")
+    load_indirect_array(model, base, "meshes")
+    load_indirect_array(model, base, "eyeballs")
 
     return model
 
@@ -1247,14 +708,14 @@ local function mdl_bodypart()
         modelindex = int32(),
     }
 
-    mdl_loadname(part, base)
+    indirect_name(part, base)
 
     local models = { 
         num = part.nummodels, 
         offset = part.modelindex, 
         dtype = mdl_model, 
     }
-    mdl_loadarray(part, base, "models", models)
+    load_indirect_array(part, base, "models", models)
 
     part.nummodels = nil
     part.modelindex = nil
@@ -1276,7 +737,7 @@ local function mdl_attachment()
 
     array_of(int32, 8) -- unused
 
-    mdl_loadname(attach, base)
+    indirect_name(attach, base)
 
     return attach
 
@@ -1289,7 +750,7 @@ local function mdl_flexdesc()
         facsidx = int32(),
     }
 
-    mdl_loadname(flexdesc, base, "facsidx")
+    indirect_name(flexdesc, base, "facsidx")
 
     return flexdesc
 
@@ -1306,8 +767,8 @@ local function mdl_flexcontroller()
         max = float32(),
     }
 
-    mdl_loadname(flexctrl, base, "typeidx")
-    mdl_loadname(flexctrl, base, "nameidx")
+    indirect_name(flexctrl, base, "typeidx")
+    indirect_name(flexctrl, base, "nameidx")
 
     return flexctrl
 
@@ -1352,10 +813,10 @@ local function mdl_flexrule()
     local base = tell_data()
     local flexrule = {
         flex = int32(),
-        flexops = mdl_array(mdl_flexop),
+        flexops = indirect_array(mdl_flexop),
     }
 
-    mdl_loadarray(flexrule, base, "flexops")
+    load_indirect_array(flexrule, base, "flexops")
 
     return flexrule
 
@@ -1377,11 +838,11 @@ local function mdl_ikchain()
     local chain = {
         nameidx = int32(),
         linktype = int32(),
-        links = mdl_array(mdl_ikchainlink),
+        links = indirect_array(mdl_ikchainlink),
     }
 
-    mdl_loadname(chain, base)
-    mdl_loadarray(chain, base, "links")
+    indirect_name(chain, base)
+    load_indirect_array(chain, base, "links")
 
     return chain
 
@@ -1408,7 +869,7 @@ local function mdl_poseparamdesc()
         _loop = float32(),
     }
 
-    mdl_loadname(poseparam, base)
+    indirect_name(poseparam, base)
 
     return poseparam
 
@@ -1422,8 +883,8 @@ local function mdl_modelgroup()
         nameidx = int32(),
     }
 
-    mdl_loadname(group, base, "labelidx")
-    mdl_loadname(group, base, "nameidx")
+    indirect_name(group, base, "labelidx")
+    indirect_name(group, base, "nameidx")
 
     return group
 
@@ -1442,7 +903,7 @@ local function mdl_flexcontrollerui()
         unused = uint16(),
     }
 
-    mdl_loadname(ctrlui, base)
+    indirect_name(ctrlui, base)
 
     return ctrlui
 
@@ -1450,7 +911,7 @@ end
 
 local function mdl_studiohdr2()
 
-    local span = mdl_span("header_2")
+    local span = span_data("header_2")
     local base = tell_data()
     local hdr2 = {
         numsrcbonetransform = int32(),
@@ -1483,39 +944,39 @@ local function mdl_header()
         view_bbmin = vector32(),
         view_bbmax = vector32(),
         flags = int32(),
-        bones = mdl_array(mdl_bone),
-        bone_controllers = mdl_array(mdl_bonecontroller),
-        hitbox_sets = mdl_array(mdl_hitboxset),
-        local_anims = mdl_array(mdl_animdesc),
-        local_sequences = mdl_array(mdl_seqdesc),
+        bones = indirect_array(mdl_bone),
+        bone_controllers = indirect_array(mdl_bonecontroller),
+        hitbox_sets = indirect_array(mdl_hitboxset),
+        local_anims = indirect_array(mdl_animdesc),
+        local_sequences = indirect_array(mdl_seqdesc),
         activitylistversion = int32(),
         eventsindexed = int32(),
-        textures = mdl_array(mdl_texture),
-        cdtextures = mdl_array(mdl_cdtexture),
+        textures = indirect_array(mdl_texture),
+        cdtextures = indirect_array(mdl_cdtexture),
         numskinref = int32(),
         numskinfamilies = int32(),
         skinindex = int32(),
-        bodyparts = mdl_array(mdl_bodypart),
-        attachments = mdl_array(mdl_attachment),
+        bodyparts = indirect_array(mdl_bodypart),
+        attachments = indirect_array(mdl_attachment),
         numlocalnodes = int32(),
         localnodeindex = int32(),
         localnodenameindex = int32(),
-        flexes = mdl_array(mdl_flexdesc),
-        flexcontrollers = mdl_array(mdl_flexcontroller),
-        flexrules = mdl_array(mdl_flexrule),
-        ikchains = mdl_array(mdl_ikchain),
-        mouths = mdl_array(mdl_mouth),
-        poseparams = mdl_array(mdl_poseparamdesc),
+        flexes = indirect_array(mdl_flexdesc),
+        flexcontrollers = indirect_array(mdl_flexcontroller),
+        flexrules = indirect_array(mdl_flexrule),
+        ikchains = indirect_array(mdl_ikchain),
+        mouths = indirect_array(mdl_mouth),
+        poseparams = indirect_array(mdl_poseparamdesc),
         surfacepropidx = int32(),
         keyvaluesidx = int32(),
         keyvaluessize = int32(),
-        localikautoplaylocks = mdl_array(mdl_iklock),
+        localikautoplaylocks = indirect_array(mdl_iklock),
         mass = float32(),
         contents = int32(),
-        includemodels = mdl_array(mdl_modelgroup),
+        includemodels = indirect_array(mdl_modelgroup),
         virtualModel = int32(),
         animblocknameidx = int32(),
-        animblocks = mdl_array(mdl_animblock),
+        animblocks = indirect_array(mdl_animblock),
         animblockModel = int32(),
         bonetablebynameindex = int32(),
         pVertexBase = int32(),
@@ -1525,12 +986,14 @@ local function mdl_header()
         numAllowedRootLODs = uint8(),
         unused = uint8(),
         unused4 = uint32(),
-        flexcontrollerui = mdl_array(mdl_flexcontrollerui),
+        flexcontrollerui = indirect_array(mdl_flexcontrollerui),
         flVertAnimFixedPointScale = float32(),
         unused3 = int32(),
         studiohdr2index = int32(),
         unused2 = int32(),
     }
+
+    m_version = header.version
 
     push_data(base + header.bonetablebynameindex)
     local t = {}
@@ -1546,278 +1009,10 @@ local function mdl_header()
         pop_data()
     end
 
-    mdl_loadname(header, base, "surfacepropidx")
-    mdl_loadname(header, base, "animblocknameidx")
-    mdl_loadname(header, base, "keyvaluesidx", "keyvaluessize")
+    indirect_name(header, base, "surfacepropidx")
+    indirect_name(header, base, "animblocknameidx")
+    indirect_name(header, base, "keyvaluesidx", "keyvaluessize")
 
-    return header
-
-end
-
-local function vvd_boneweight()
-
-    return {
-        weight = array_of(float32, MAX_NUM_BONES_PER_VERT),
-        bone = array_of(uint8, MAX_NUM_BONES_PER_VERT),
-        numBones = uint8(),
-    }
-
-end
-
-local vvd_boneweight_size = 5 * MAX_NUM_BONES_PER_VERT + 1
-local vvd_vertex_size = vvd_boneweight_size + 24 + 8
-local function vvd_vertex()
-
-    return {
-        weights = vvd_boneweight(),
-        position = vector32(),
-        normal = vector32(),
-        u = float32(),
-        v = float32(),
-    }
-
-end
-
-local function vvd_tangent()
-
-    return {
-        x = float32(),
-        y = float32(),
-        z = float32(),
-        w = float32(),
-    }
-
-end
-
-local function vvd_header()
-
-    return {
-        id = int32(),
-        version = int32(),
-        checksum = int32(),
-        numLODs = int32(),
-        numLODVertices = array_of(int32, MAX_NUM_LODS),
-        numFixups = int32(),
-        fixupTableStart = int32(),
-        vertexDataStart = int32(),
-        tangentDataStart = int32(),
-    }
-
-end
-
-local function vvd_fixup()
-
-    return {
-        lod = int32(),
-        sourceID = int32(),
-        numVertices = int32(),
-    }
-
-end
-
-local function vtx_vertex()
-
-    return {
-        boneWeightIndex = array_of(uint8, 3),
-        numBones = uint8(),
-        origMeshVertID = uint16(),
-        boneID = array_of(int8, 3),
-    }
-
-end
-
-local function vtx_strip()
-
-    local base = tell_data()
-    local strip = {
-        numIndices = int32(),
-        indexOffset = int32(),
-        numVerts = int32(),
-        vertOffset = int32(),
-        numBones = int16(),
-        flags = uint8(),
-        numBoneStateChanges = int32(),
-        boneStateChangeOffset = int32(),
-    }
-
-    if band(strip.flags, STRIP_IS_TRILIST) ~= 0 then
-        strip.isTriList = true
-    elseif band(strip.flags, STRIP_IS_TRISTRIP) ~= 0 then
-        strip.isTriStrip = true
-    end
-    strip.flags = nil
-
-    return strip
-
-end
-
-local function vtx_stripgroup()
-
-    local base = tell_data()
-    local group = {
-        vertices = mdl_array(vtx_vertex),
-        indices = mdl_array(uint16),
-        strips = mdl_array(vtx_strip),
-        flags = uint8(),
-    }
-
-    if band(group.flags, STRIPGROUP_IS_FLEXED) ~= 0 then group.isFlexed = true end
-    if band(group.flags, STRIPGROUP_IS_HWSKINNED) ~= 0 then group.isHWSkinned = true end
-    if band(group.flags, STRIPGROUP_IS_DELTA_FLEXED) ~= 0 then group.isDeltaFlexed = true end
-    if band(group.flags, STRIPGROUP_SUPPRESS_HW_MORPH) ~= 0 then group.supressHWMorph = true end
-    group.flags = nil
-
-    mdl_loadarray(group, base, "vertices")
-    mdl_loadarray(group, base, "indices")
-    mdl_loadarray(group, base, "strips")
-
-    local vertices = group.vertices
-    local indices = group.indices
-
-    for i=1, #indices do
-        local idx = indices[i]
-        local vidx = vertices[idx+1].origMeshVertID+1
-        indices[i] = vidx
-    end
-
-    group.vertices = nil
-
-    return group
-
-end
-
-local function vtx_mesh()
-
-    local base = tell_data()
-    local mesh = {
-        stripgroups = mdl_array(vtx_stripgroup),
-        flags = uint8(),
-    }
-
-    if band(mesh.flags, MESH_IS_TEETH) ~= 0 then mesh.isTeeth = true end
-    if band(mesh.flags, MESH_IS_EYES) ~= 0 then mesh.isEyes = true end
-    mesh.flags = nil
-
-    mdl_loadarray(mesh, base, "stripgroups")
-    return mesh
-
-end
-
-local function vtx_modellod()
-
-    local base = tell_data()
-    local lod = {
-        meshes = mdl_array(vtx_mesh),
-        switchPoint = float32(),
-    }
-
-    mdl_loadarray(lod, base, "meshes")
-    return lod
-
-end
-
-local function vtx_model()
-
-    local base = tell_data()
-    local model = {
-        lods = mdl_array(vtx_modellod),
-    }
-
-    mdl_loadarray(model, base, "lods")
-    return model
-
-end
-
-local function vtx_bodypart()
-
-    local base = tell_data()
-    local part = {
-        models = mdl_array(vtx_model),
-    }
-
-    mdl_loadarray(part, base, "models")
-    return part
-
-end
-
-local function vtx_header()
-
-    local header = {
-        version = int32(),
-        vertCacheSize = int32(),
-        maxBonesPerStrip = uint16(),
-        maxBonesPerTri = uint16(),
-        maxBonesPerVert = int32(),
-        checksum = int32(),
-        numLODs = int32(),
-        materialReplacementListOffset = int32(),
-        bodyParts = mdl_array( vtx_bodypart ),
-    }
-
-    mdl_loadarray(header, 0, "bodyParts")
-    return header
-
-end
-
-local function LoadVVD( filename, path, lod, bLoadTangents )
-
-    open_data(filename, path)
-
-    local header = vvd_header()
-    local fixups, vertices, tangents
-
-    lod = math.Clamp(lod or 1, 1, header.numLODs)
-
-    if header.numFixups > 0 then
-        seek_data( header.fixupTableStart )
-        fixups = array_of( vvd_fixup, header.numFixups )
-    end
-    
-    seek_data( header.vertexDataStart )
-    vertices = array_of( vvd_vertex, header.numLODVertices[lod] )
-
-    if bLoadTangents then
-        seek_data( header.tangentDataStart )
-        tangents = array_of( vvd_tangent, header.numLODVertices[lod] )
-    end
-
-    if fixups then
-
-        local corrected = table.Copy( vertices )
-		local target = 0
-		for _, fixup in ipairs( fixups ) do
-			if fixup.lod < 0 then continue end
-
-			for i=1, fixup.numVertices do
-				corrected[ i + target ] = vertices[ i + fixup.sourceID ]
-			end
-
-			target = target + fixup.numVertices
-		end
-		vertices = corrected
-
-    end
-
-    end_data()
-
-    if tangents then
-        assert(#vertices == #tangents, "Tangent -> Vertex mismatch")
-        for i=1, #vertices do
-            vertices[i].tangent = tangents[i]
-        end
-    end
-
-    header.vertices = vertices
-
-	return header
-
-end
-
-local function LoadVTX( filename, path )
-
-    open_data(filename, path)
-    local header = vtx_header()
-    end_data()
     return header
 
 end
@@ -1831,7 +1026,7 @@ STUDIO_ANIM_RAWROT2	= 0x20 // Quaternion64
 
 local function LoadFrameData(numframes, bone, pos)
 
-    print("LOAD FRAMES: " .. numframes)
+    --print("LOAD FRAMES: " .. numframes)
     local base = tell_data()
     local offsets = array_of(int16, 3)
     local values = {{},{},{}}
@@ -1843,7 +1038,7 @@ local function LoadFrameData(numframes, bone, pos)
             local k = numframes
             local ptr = base + offsets[i]
             push_data(ptr)
-            local span = mdl_span("__")
+            local span = span_data("__")
             local valid = uint8()
             local total = uint8()
             local vt = values[i]
@@ -1897,14 +1092,12 @@ local function LoadAnimBlock(numframes, bones)
             delta = delta,
         }
         --print(bone, flags, nextoffset)
-        if rawpos or true then PrintTable(posrot) end
+        --if rawpos or true then PrintTable(posrot) end
         if nextoffset == 0 then break end
         seek_data(base + nextoffset)
     end
 
 end
-
-local m_vis = {}
 
 local mdl_meta = {}
 mdl_meta.__index = mdl_meta
@@ -1927,35 +1120,143 @@ function mdl_meta:GetVertices()
 
 end
 
+local function AppendTri(v0,v1,v2)
+
+    mesh.Position(v0.position)
+    mesh.Normal(v0.normal)
+    mesh.TexCoord(0, v0.u, v0.v)
+    mesh.UserData(v0.tangent.x, v0.tangent.y, v0.tangent.z, v0.tangent.w)
+    mesh.AdvanceVertex()
+
+    mesh.Position(v1.position)
+    mesh.Normal(v1.normal)
+    mesh.TexCoord(0, v1.u, v1.v)
+    mesh.UserData(v1.tangent.x, v1.tangent.y, v1.tangent.z, v1.tangent.w)
+    mesh.AdvanceVertex()
+
+    mesh.Position(v2.position)
+    mesh.Normal(v2.normal)
+    mesh.TexCoord(0, v2.u, v2.v)
+    mesh.UserData(v2.tangent.x, v2.tangent.y, v2.tangent.z, v2.tangent.w)
+    mesh.AdvanceVertex()
+
+end
+
+function mdl_meta:RenderStrip( group, strip )
+
+    if not strip then return end
+
+    local vertices = self:GetVertices()
+
+    local num = strip.numIndices / 3
+    local i = 1 + strip.indexOffset
+    while num > 0 do
+
+        local sec = math.min(10922, num)
+        mesh.Begin( MATERIAL_TRIANGLES, sec )
+
+        for j=1, sec do
+
+            local i0 = group.indices[i]
+            local i1 = group.indices[i+1]
+            local i2 = group.indices[i+2]
+
+            local v0 = vertices[i0]
+            local v1 = vertices[i1]
+            local v2 = vertices[i2]
+
+            local b,e = pcall(AppendTri,v0,v1,v2)
+            if not b then print(e) break end
+            i = i + 3
+
+        end
+
+        mesh.End()
+        num = num - sec
+
+    end
+
+end
+
+function mdl_meta:RenderStripGroup( group )
+
+    for i=1, #group.strips do
+        self:RenderStrip( group, group.strips[i] )
+    end
+
+end
+
+function mdl_meta:RenderMesh( msh )
+
+    local mat = self:GetMeshMaterial(msh)
+    if not mat then return end
+
+    render.SetMaterial(mat)
+
+    for _, group in ipairs(msh.stripgroups) do
+
+        self:RenderStripGroup( group )
+
+    end
+
+end
+
+function mdl_meta:RenderBodyPart( part )
+
+    if not part then return end
+    for _, m in ipairs(part.models) do
+
+        for _, msh in ipairs(m.meshes) do
+
+            self:RenderMesh(msh)
+
+        end
+
+    end
+
+end
+
+function mdl_meta:Render()
+
+    for _, p in ipairs(self:GetBodyParts()) do
+
+        self:RenderBodyPart(p)
+
+    end
+
+end
+
 local function LoadMDL( filename, path )
 
     open_data(filename, path)
 
-    local span = mdl_span("header")
+    local span = span_data("header")
     local header = mdl_header()
     span:Stop()
 
+    print("LOADED HEADER OK... VERSION: " .. header.version)
+
     setmetatable(header, mdl_meta)
 
-    mdl_loadarray(header, 0, "bones")
-    mdl_loadarray(header, 0, "bone_controllers")
-    mdl_loadarray(header, 0, "hitbox_sets")
-    mdl_loadarray(header, 0, "local_anims")
-    mdl_loadarray(header, 0, "local_sequences")
-    mdl_loadarray(header, 0, "textures")
-    mdl_loadarray(header, 0, "cdtextures")
-    mdl_loadarray(header, 0, "bodyparts")
-    mdl_loadarray(header, 0, "attachments")
-    mdl_loadarray(header, 0, "flexrules")
-    mdl_loadarray(header, 0, "ikchains")
-    mdl_loadarray(header, 0, "mouths")
-    mdl_loadarray(header, 0, "poseparams")
-    mdl_loadarray(header, 0, "localikautoplaylocks")
-    mdl_loadarray(header, 0, "includemodels")
-    mdl_loadarray(header, 0, "animblocks")
-    mdl_loadarray(header, 0, "flexcontrollerui")
-    mdl_loadarray(header, 0, "flexcontrollers")
-    mdl_loadarray(header, 0, "flexes")
+    load_indirect_array(header, 0, "bones")
+    load_indirect_array(header, 0, "bone_controllers")
+    load_indirect_array(header, 0, "hitbox_sets")
+    load_indirect_array(header, 0, "local_anims")
+    load_indirect_array(header, 0, "local_sequences")
+    load_indirect_array(header, 0, "textures")
+    load_indirect_array(header, 0, "cdtextures")
+    load_indirect_array(header, 0, "bodyparts")
+    load_indirect_array(header, 0, "attachments")
+    load_indirect_array(header, 0, "flexrules")
+    load_indirect_array(header, 0, "ikchains")
+    load_indirect_array(header, 0, "mouths")
+    load_indirect_array(header, 0, "poseparams")
+    load_indirect_array(header, 0, "localikautoplaylocks")
+    load_indirect_array(header, 0, "includemodels")
+    load_indirect_array(header, 0, "animblocks")
+    load_indirect_array(header, 0, "flexcontrollerui")
+    load_indirect_array(header, 0, "flexcontrollers")
+    load_indirect_array(header, 0, "flexes")
 
     print("ANIM BLOCK NAME: " .. header.animblockname)
 
@@ -1971,7 +1272,7 @@ local function LoadMDL( filename, path )
         end
     end
 
-    PrintTable(header.bones)
+    --PrintTable(header.bones)
 
 
     --[[if datastart == dataend then return nil end
@@ -1994,17 +1295,13 @@ local function LoadMDL( filename, path )
             local base = anim.baseptr
             local ptr = base + anim.animindex
             push_data(ptr)
-            local span = mdl_span("Anim: " .. anim.name)
+            local span = span_data("Anim: " .. anim.name)
             LoadAnimBlock(anim.numframes, header.bones)
             span:Stop()
             pop_data()
         end
 
     end
-
-    m_vis.array_spans = m_array_spans
-    m_vis.size = m_size
-    m_vis.ready = true
 
     end_data()
 
@@ -2073,149 +1370,4 @@ function LoadModel( filename, path )
 
 end
 
-local function Prof( k, f, ... )
-
-    local s = SysTime()
-    local r = f(...)
-    local e = SysTime()
-    print(k .. " took " .. (e - s) * 1000 .. "ms" )
-    return r
-
-end
-
-local mdl_test = "models/Gibs/Fast_Zombie_Legs.mdl"
-mdl_test = LocalPlayer():GetModel()
-mdl_test = "models/Gibs/HGIBS.mdl"
-mdl_test = "models/Lamarr.mdl"
-mdl_test = "models/vortigaunt.mdl"
---mdl_test = "models/crow.mdl"
---mdl_test = "models/Alyx.mdl"
---mdl_test = "models/kazditi/protogen/protogen.mdl"
---mdl_test = "models/gman_high.mdl"
---mdl_test = "models/Combine_dropship.mdl"
---mdl_test = "models/Combine_turrets/Floor_turret.mdl"
---mdl_test = "models/combine_camera/combine_camera.mdl"
---mdl_test = "models/AntLion.mdl"
---mdl_test = "models/props_phx/construct/metal_tube.mdl"
-mdl_test = "models/dog.mdl"
-mdl_test = "models/Zombie/Classic_legs.mdl"
-mdl_test = "models/Gibs/Fast_Zombie_Torso.mdl"
-mdl_test = "models/Combine_Strider.mdl"
-mdl_test = "models/props_junk/wood_crate001a.mdl"
-mdl_test = "models/props_lab/frame001a.mdl"
---mdl_test = "models/props_lab/Cleaver.mdl"
---print("LOADING: " .. tostring(mdl_test))
-local loaded = Prof( "LoadModel", LoadModel, mdl_test )
-
-
-hook.Add("PostDrawOpaqueRenderables", "test_mdl", function()
-
-    local vertices = loaded:GetVertices()
-    for _, p in ipairs(loaded:GetBodyParts()) do
-
-        for _, m in ipairs(p.models) do
-
-            for _, msh in ipairs(m.meshes) do
-
-                local mat = loaded:GetMeshMaterial(msh)
-                if mat == nil then continue end
-
-                render.SetMaterial(mat)
-
-                for _, strip in ipairs(msh.stripgroups) do
-
-                    mesh.Begin( MATERIAL_TRIANGLES, #strip.indices / 3 )
-
-                    for i=1, #strip.indices, 3 do
-
-                        local i0 = strip.indices[i]
-                        local i1 = strip.indices[i+1]
-                        local i2 = strip.indices[i+2]
-
-                        local v0 = vertices[i0]
-                        local v1 = vertices[i1]
-                        local v2 = vertices[i2]
-
-                        mesh.Position(v0.position)
-                        mesh.Normal(v0.normal)
-                        mesh.TexCoord(0, v0.u, v0.v)
-                        mesh.UserData(v0.tangent.x, v0.tangent.y, v0.tangent.z, v0.tangent.w)
-                        mesh.AdvanceVertex()
-
-                        mesh.Position(v1.position)
-                        mesh.Normal(v1.normal)
-                        mesh.TexCoord(0, v1.u, v1.v)
-                        mesh.UserData(v1.tangent.x, v1.tangent.y, v1.tangent.z, v1.tangent.w)
-                        mesh.AdvanceVertex()
-
-                        mesh.Position(v2.position)
-                        mesh.Normal(v2.normal)
-                        mesh.TexCoord(0, v2.u, v2.v)
-                        mesh.UserData(v2.tangent.x, v2.tangent.y, v2.tangent.z, v2.tangent.w)
-                        mesh.AdvanceVertex()
-
-                    end
-
-                    mesh.End()
-
-                end
-
-            end
-
-        end
-
-    end
-
-end)
-
---[[local old_avg = 0
-local new_avg = 0
-local iters = 10
-
-for i=1, iters do
-    local start = SysTime()
-    studiomdl.Load( mdl_test )
-    local finish = SysTime()
-    old_avg = old_avg + ((finish - start)*1000)
-end
-
-for i=1, iters do
-    local start = SysTime()
-    local loaded = LoadModel( mdl_test )
-    local finish = SysTime()
-    new_avg = new_avg + ((finish - start)*1000)
-end
-
-print("OLD MDL LOADER TOOK: " .. (old_avg/iters) .. "ms")
-print("NEW MDL LOADER TOOK: " .. (new_avg/iters) .. "ms")]]
-
---print( LocalPlayer():GetModel() )
-
-hook.Add("HUDPaint", "paint_spans", function()
-
-    --if true then return end
-    if not m_vis.ready then return end
-
-    local size = m_vis.size
-    local array_spans = m_vis.array_spans
-    local height = ScrH() - 100
-
-    surface.SetDrawColor(80,80,80)
-    surface.DrawRect(0, 0, 1000, height)
-
-    for _,v in ipairs(array_spans) do
-
-        local x = v[5] * 100
-        local y0 = (v[1] / size) * height
-        local y1 = (v[2] / size) * height
-        if y1 - y0 == 0 then continue end
-
-        surface.SetDrawColor(255,255,255)
-        surface.DrawRect(x, y0, 100, y1-y0)
-
-        surface.DrawLine(x + 100, y0, 500, y0)
-        draw.SimpleText(v[3] .. ": " .. (v[2] - v[1]) .. "b", "DermaDefault", 510, y0+5, Color(255,255,255), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-
-    end
-
-end)
+return __lib
