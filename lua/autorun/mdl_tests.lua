@@ -1,6 +1,5 @@
 include("alchemy_toolkit.lua")
 
-if true then return end
 alchemy.Init()
 
 local mdl = alchemy.Loader("mdl")
@@ -18,6 +17,44 @@ local function Prof( k, f, ... )
 end
 
 if CLIENT then
+
+    local function make_cube(strip, size, pos)
+        local function q(ang)
+            local function av(x,y,z) local v = Vector(x,y,z) v:Rotate(ang) return v end
+            local nrm, tgt = av(0,0,1), av(1,0,0)
+            strip:Vertex( pos+av(-size,-size,size), nrm, 0, 0, tgt.x,tgt.y,tgt.z,1 )
+            strip:Vertex( pos+av(size,-size,size), nrm, 1, 0, tgt.x,tgt.y,tgt.z,1 )
+            strip:Vertex( pos+av(size,size,size), nrm, 1, 1, tgt.x,tgt.y,tgt.z,1 )
+            strip:Vertex( pos+av(-size,size,size), nrm, 0, 1, tgt.x,tgt.y,tgt.z,1 )
+            strip:Triangle(-1,-2,-3)
+            strip:Triangle(-4,-1,-3)
+        end
+
+        q(Angle(0,0,0))
+        q(Angle(90,0,0))
+        q(Angle(180,0,0))
+        q(Angle(270,0,0))
+        q(Angle(0,0,90))
+        q(Angle(0,0,-90))
+    end
+
+    local studiomdl = alchemy.Compiler("mdl")
+
+    local studio = studiomdl.New()
+    local model = studio:BodyPart():Model()
+    local msh = model:Mesh( Material("models/flesh") )
+    local strip = msh:Strip()
+
+    make_cube(strip, 30, Vector(0,0,50))
+
+    hook.Add("PostDrawOpaqueRenderables", "test_studio", function()
+    
+        model:Render()
+
+    end)
+
+    if true then return end
+    
 
     local mdl_test = "models/Gibs/Fast_Zombie_Legs.mdl"
     mdl_test = "models/Gibs/HGIBS.mdl"

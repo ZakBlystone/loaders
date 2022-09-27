@@ -352,7 +352,7 @@ function indirect_array( dtype, flipped )
     }
 
     if flipped then
-        arr.num, arr.offest = arr.offset, arr.num
+        arr.num, arr.offset = arr.offset, arr.num
     end
     return arr
 
@@ -430,7 +430,7 @@ function nullstr()
     if k then 
         coverage_data(m_ptr, k)
         local str = str_sub(m_data, m_ptr, k-1)
-        m_ptr = k
+        m_ptr = k+1
         return str
     end
 

@@ -30,6 +30,12 @@ local __lib = alchemy.MakeLib()
 
 quat_meta = {}
 quat_meta.__index = quat_meta
+quat_meta.__tostring = function(s) 
+	return string.format("%0.2f, %0.2f, %0.2f, %0.2f", s.x, s.y, s.z, s.w)
+end
+quat_meta.__eq = function(a,b)
+	return a.x == b.x and a.y == b.y and a.z == b.z and a.w == b.w
+end
 
 function quat_meta:Angle()
 
