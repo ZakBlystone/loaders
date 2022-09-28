@@ -229,7 +229,7 @@ local function mdl_bone()
         flags = int32(),
         proctype = int32(),
         procindex = int32(),
-        physicsbone = float32(),
+        physicsbone = int32(),
         surfacepropidx = int32(),
         contents = int32(),
     }
@@ -708,6 +708,8 @@ local function mdl_bodypart()
         modelindex = int32(),
     }
 
+    print("BP BASE: " .. part.base .. " : " .. base)
+
     indirect_name(part, base)
 
     local models = { 
@@ -1002,6 +1004,19 @@ local function mdl_header()
     end
     header.bonetablebynameindex = t
     pop_data()
+
+    if header.numskinfamilies ~= 0 then
+        header.skins = {}
+        push_data(base + header.skinindex)
+        for i=1, header.numskinfamilies do
+            local skin = {}
+            for j=1, header.numskinref do
+                skin[j] = uint16()
+            end
+            header.skins[i] = skin
+        end
+        pop_data()
+    end
 
     if header.studiohdr2index ~= 0 then
         push_data(base + header.studiohdr2index)

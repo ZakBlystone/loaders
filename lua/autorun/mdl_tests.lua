@@ -47,13 +47,15 @@ if CLIENT then
 
     make_cube(strip, 30, Vector(0,0,50))
 
+    studio:Write()
+
     hook.Add("PostDrawOpaqueRenderables", "test_studio", function()
     
         model:Render()
 
     end)
 
-    if true then return end
+    --if true then return end
     
 
     local mdl_test = "models/Gibs/Fast_Zombie_Legs.mdl"
@@ -65,28 +67,50 @@ if CLIENT then
     mdl_test = "models/kazditi/protogen/protogen.mdl"
     --mdl_test = "models/gman_high.mdl"
     --mdl_test = "models/Combine_dropship.mdl"
-    --mdl_test = "models/Combine_turrets/Floor_turret.mdl"
+    mdl_test = "models/Combine_turrets/Floor_turret.mdl"
     --mdl_test = "models/combine_camera/combine_camera.mdl"
     --mdl_test = "models/AntLion.mdl"
-    --mdl_test = "models/props_phx/construct/metal_tube.mdl"
-    mdl_test = "models/dog.mdl"
-    mdl_test = "models/Zombie/Classic_legs.mdl"
-    mdl_test = "models/raptor/aeon_enhanced/aeon.mdl"
-    mdl_test = "models/n7legion/fortnite/hybrid_player_alt.mdl"
+    mdl_test = "models/props_phx/construct/metal_plate1.mdl"
+    --mdl_test = "models/dog.mdl"
+    --mdl_test = "models/Zombie/Classic_legs.mdl"
+    --mdl_test = "models/raptor/aeon_enhanced/aeon.mdl"
+    --mdl_test = "models/n7legion/fortnite/hybrid_player_alt.mdl"
     --mdl_test = "models/player/LeymiRBA/GrifGrif.mdl" [this one breaks...]
     --mdl_test = "models/Gibs/Fast_Zombie_Torso.mdl"
     --mdl_test = "models/Combine_Strider.mdl"
     --mdl_test = "models/props_junk/wood_crate001a.mdl"
+    --mdl_test = "models/props_junk/PlasticCrate01a.mdl"
     --mdl_test = "models/props_lab/frame001a.mdl"
     --mdl_test = "models/props_lab/Cleaver.mdl"
+    --mdl_test = "models/magnusson_device.mdl"
+    --mdl_test = "models/antlion_worker.mdl"
     print("LOADING: " .. tostring(mdl_test))
     local loaded = Prof( "LoadModel", mdl.LoadModel, mdl_test )
     
-    print(tostring(loaded))
+    if true then
+        --[[print(tostring(loaded))
+        local keys = {}
+        for k,v in pairs(loaded) do
+            keys[#keys+1] = k
+        end
+        table.sort(keys)
+        for _, v in ipairs(keys) do
+            print(v .. " : " .. tostring(loaded[v]))
+        end]]
+
+        PrintTable(loaded.skins)
+        PrintTable(loaded.textures)
+        if loaded.hdr2 then PrintTable(loaded.hdr2) end
+
+        PrintTable(loaded.bones)
+        PrintTable(loaded.hitbox_sets)
+    end
+
+    --PrintTable(loaded.vvd.vertices)
     
     hook.Add("PostDrawOpaqueRenderables", "test_mdl", function()
     
-        if true then return end
+        --if true then return end
         if loaded then
             loaded:Render()
         end
@@ -97,7 +121,7 @@ if CLIENT then
     
     hook.Add("HUDPaint", "paint_spans", function()
     
-        if true then return end
+        --if true then return end
 
         local m_vis = mdl.get_coverage_vis()
         if not m_vis or not m_vis.ready then return end

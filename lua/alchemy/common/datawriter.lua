@@ -42,6 +42,7 @@ local lshift, rshift, band, bor, bnot = bit.lshift, bit.rshift, bit.band, bit.bo
 local File = FindMetaTable("File")
 local m_file = nil
 local m_stack = nil
+local m_names = nil
 local WriteUShort = File.WriteUShort
 local WriteShort = File.WriteShort
 local WriteULong = File.WriteULong
@@ -54,7 +55,7 @@ local Write = File.Write
 function open_data( filename, path )
 
     local f = file.Open(filename, "wb", path or "DATA")
-    m_stack, m_file = {}, f
+    m_stack, m_names, m_file = {}, {}, f
     return f ~= nil
 
 end
@@ -87,36 +88,36 @@ function pop_data()
 end
 
 function uint32(v)
-    WriteULong(m_file, v)
+    return tell_data(), WriteULong(m_file, v)
 end
 
 function uint16(v)
-    WriteUShort(m_file, v)
+    return tell_data(), WriteUShort(m_file, v)
 end
 
 function uint8(v)
-    WriteByte(m_file, v)
+    return tell_data(), WriteByte(m_file, v)
 end
 
 function int32(v)
-    WriteLong(m_file, v)
+    return tell_data(), WriteLong(m_file, v)
 end
 
 function int16(v)
-    WriteShort(m_file, v)
+    return tell_data(), WriteShort(m_file, v)
 end
 
 function int8(v)
-    WriteByte(m_file, v)
+    return tell_data(), WriteByte(m_file, v)
 end
 
 function char(v)
-    WriteByte(m_file, str_byte(v))
+    return tell_data(), WriteByte(m_file, str_byte(v))
 end
 
 function charstr(str, n)
     local len = str_len(str)
-    Write(m_file, str .. str_rep('\0', n - len))
+    return tell_data(), Write(m_file, str .. str_rep('\0', n - len))
 end
 
 function float16(v)
@@ -124,7 +125,7 @@ function float16(v)
 end
 
 function float32(v)
-    WriteFloat(m_file, v)
+    return tell_data(), WriteFloat(m_file, v)
 end
 
 function vector32(v) local x,y,z = v:Unpack() float32(x) float32(y) float32(z) end
@@ -132,6 +133,7 @@ function vector48(v) local x,y,z = v:Unpack() float16(x) float16(y) float16(z) e
 function angle32(v) local x,y,z = v:Unpack() float32(x) float32(y) float32(z) end
 
 function matrix3x4(m)
+    local offset = tell_data()
     local e0,  e1,  e2,  e3,
           e4,  e5,  e6,  e7,
           e8,  e9,  e10, e11,
@@ -140,14 +142,17 @@ function matrix3x4(m)
     float32(e0) float32(e1) float32(e2) float32(e3)
     float32(e4) float32(e5) float32(e6) float32(e7)
     float32(e8) float32(e9) float32(e10) float32(e11)
+    return offset
 end
 
 function quat128(q)
 
+    local offset = tell_data()
     float32(q.x)
     float32(q.y)
     float32(q.z)
     float32(q.w)
+    return offset
 
 end
 
@@ -161,9 +166,11 @@ end
 
 function array_of( f, v )
 
+    local offset = tell_data()
     for i=1, #v do
         f(v[i])
     end
+    return offset
 
 end
 
@@ -193,7 +200,8 @@ end
 
 function write_indirect_array( tbl, base, field, aux, ... )
 
-    local arr = aux or tbl[field]
+    local field_is_aux = type(field) == "table"
+    local arr = ( field_is_aux and field or tbl[field] )
     if not arr.offset then return end
 
     local num, offset = arr.num, arr.offset
@@ -207,13 +215,15 @@ function write_indirect_array( tbl, base, field, aux, ... )
     int32( base )
     pop_data()
 
+    local r = {}
     for i=1, num do
-        arr.dtype( arr.values[i] )
+        r[#r+1] = arr.dtype( arr.values[i] )
     end
+    if not field_is_aux then tbl[field] = r end
 
 end
 
-function indirect_name( str )
+function indirect_name( str, write_size )
 
     local name = {
         offset = 0,
@@ -222,6 +232,12 @@ function indirect_name( str )
 
     name.offset = tell_data()
     int32(0)
+
+    if write_size then
+        int32( str_len(str) )
+    end
+
+    m_names[#m_names+1] = name
 
     return name
 
@@ -233,13 +249,30 @@ function nullstr( str )
 
 end
 
-function write_indirect_name( name, base )
+function write_indirect_name( name, base, no_remove )
 
     base = tell_data() - base
     push_data( name.offset )
     int32( base )
     pop_data()
     nullstr( name.str )
+
+    if not no_remove then
+        for i=1, #m_names do
+            if m_names[i] == name then 
+                table.remove(m_names, i)
+                break
+            end
+        end
+    end
+
+end
+
+function write_all_names( base )
+
+    for _, name in ipairs(m_names) do
+        write_indirect_name( name, base, true )
+    end
 
 end
 
