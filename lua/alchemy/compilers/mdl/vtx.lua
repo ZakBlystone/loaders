@@ -39,4 +39,165 @@ local __lib = alchemy.MakeLib({
     },
 })
 
+local lshift, rshift, band, bor, bnot = bit.lshift, bit.rshift, bit.band, bit.bor, bit.bnot
+local default_weight = { {0, 1}, {0, 0}, {0, 0} }
+
+-- Strip flags
+STRIP_IS_TRILIST = 1
+STRIP_IS_TRISTRIP = 2
+
+-- Stripgroup flags
+STRIPGROUP_IS_FLEXED = 0x01
+STRIPGROUP_IS_HWSKINNED = 0x02
+STRIPGROUP_IS_DELTA_FLEXED = 0x04
+STRIPGROUP_SUPPRESS_HW_MORPH = 0x08
+
+-- Mesh flags
+MESH_IS_TEETH = 0x01
+MESH_IS_EYES = 0x02
+
+VTX_VERSION = 4
+
+MAX_NUM_BONES_PER_VERT = 3
+MAX_NUM_LODS = 8
+
+local function vtx_bonestatechange(v)
+
+    return {
+        hardwareID = int32(v.hardwareID),
+        newBoneID = int32(v.newBoneID),
+    }
+
+end
+
+local function vtx_vertex(v)
+
+    return {
+        boneWeightIndex = array_of(uint8, v.boneWeightIndex),
+        numBones = uint8(v.numBones),
+        origMeshVertID = uint16(v.origMeshVertID),
+        boneID = array_of(int8, v.boneID),
+    }
+
+end
+
+local function vtx_strip(v)
+
+    local base = tell_data()
+    local strip = {
+        numIndices = int32(v.numIndices),
+        indexOffset = int32(v.indexOffset),
+        numVerts = int32(v.numVerts),
+        vertOffset = int32(v.vertOffset),
+        numBones = int16(v.numBones),
+        flags = uint8(STRIP_IS_TRILIST),
+        boneStateChanges = indirect_array(vtx_bonestatechange, v.boneStateChanges), -- figure out
+    }
+
+    return strip
+
+end
+
+-- actually mesh
+local function vtx_stripgroup( v )
+
+    local base = tell_data()
+    --print("BASE AT: " .. base)
+    local group = {
+        vertices = indirect_array(vtx_vertex, v.vertices), 
+        indices = indirect_array(uint16, v.indices),
+        strips = indirect_array(vtx_strip, v.strips),
+        flags = uint8(v:GetFlags()), -- todo: compute these flags
+    }
+
+    --PrintTable(group)
+
+    write_indirect_array(group, base, "vertices")
+    write_indirect_array(group, base, "indices")
+    write_indirect_array(group, base, "strips")
+
+    return group
+
+end
+
+local function vtx_mesh(v)
+
+    local base = tell_data()
+    local mesh = {
+        stripgroups = indirect_array(vtx_stripgroup, v.stripgroups),
+        flags = uint8(0), -- teeth / eyes
+    }
+
+    write_indirect_array(mesh, base, "stripgroups")
+    return mesh
+
+end
+
+-- actually model
+local function vtx_modellod(v)
+
+    local base = tell_data()
+    local lod = {
+        meshes = indirect_array(vtx_mesh, v.meshes),
+        switchPoint = float32(0),
+    }
+
+    write_indirect_array(lod, base, "meshes")
+    return lod
+
+end
+
+local function vtx_model(v)
+
+    local base = tell_data()
+    local model = {
+        lods = indirect_array(vtx_modellod, { v }),
+    }
+
+    write_indirect_array(model, base, "lods")
+    return model
+
+end
+
+local function vtx_bodypart(v)
+
+    local base = tell_data()
+    local part = {
+        models = indirect_array(vtx_model, v.models),
+    }
+
+    write_indirect_array(part, base, "models")
+    return part
+
+end
+
+local function vtx_header(v)
+
+    local header = {
+        version = int32(VTX_VERSION),
+        vertCacheSize = int32(24), -- figure out
+        maxBonesPerStrip = uint16(53), -- figure out
+        maxBonesPerTri = uint16(MAX_NUM_BONES_PER_VERT*3),
+        maxBonesPerVert = int32(MAX_NUM_BONES_PER_VERT),
+        checksum = int32(v:GetChecksum()),
+        numLODs = int32(1),
+        materialReplacementListOffset = int32(0),
+        bodyParts = indirect_array( vtx_bodypart, v.bodyparts ),
+    }
+
+    --PrintTable(header)
+
+    write_indirect_array(header, 0, "bodyParts")
+    return header
+
+end
+
+function WriteStudioVTX( studio )
+
+    open_data("studio/vtx.dat")
+    vtx_header( studio )
+    end_data()
+
+end
+
 return __lib

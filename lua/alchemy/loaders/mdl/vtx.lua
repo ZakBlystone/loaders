@@ -50,6 +50,15 @@ MESH_IS_EYES = 0x02
 
 function vtx_get_coverage_vis() return get_coverage_vis() end
 
+local function vtx_bonestatechange()
+
+    return {
+        hardwareID = int32(),
+        newBoneID = int32(),
+    }
+
+end
+
 local function vtx_vertex()
 
     return {
@@ -71,9 +80,10 @@ local function vtx_strip()
         vertOffset = int32(),
         numBones = int16(),
         flags = uint8(),
-        numBoneStateChanges = int32(),
-        boneStateChangeOffset = int32(),
+        boneStateChanges = indirect_array(vtx_bonestatechange),
     }
+
+    load_indirect_array(strip, base, "boneStateChanges")
 
     if band(strip.flags, STRIP_IS_TRILIST) ~= 0 then
         strip.isTriList = true
@@ -112,6 +122,9 @@ local function vtx_stripgroup()
 
     local vertices = group.vertices
     local indices = group.indices
+
+    --PrintTable(group)
+    --PrintTable(indices)
 
     --print("VERTS: " .. #vertices)
     for i=1, #indices do
@@ -193,8 +206,6 @@ local function vtx_header()
         materialReplacementListOffset = int32(),
         bodyParts = indirect_array( vtx_bodypart ),
     }
-
-    --PrintTable(header)
 
     load_indirect_array(header, 0, "bodyParts")
     return header

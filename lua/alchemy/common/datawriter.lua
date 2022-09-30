@@ -207,7 +207,13 @@ function write_indirect_array( tbl, base, field, aux, ... )
     local num, offset = arr.num, arr.offset
     local dtype = arr.dtype
 
-    if num == 0 then return end
+    if num == 0 then
+        print("WRITE ZERO ARRAY AT: " .. arr.offset)
+        push_data( arr.offset )
+        uint32( 0xABABABAB )
+        pop_data()
+        return 
+    end
     
     base = tell_data() - base
 
@@ -223,11 +229,12 @@ function write_indirect_array( tbl, base, field, aux, ... )
 
 end
 
-function indirect_name( str, write_size )
+function indirect_name( str, base, write_size )
 
     local name = {
         offset = 0,
         str = str,
+        base = base or 0,
     }
 
     name.offset = tell_data()
@@ -249,9 +256,9 @@ function nullstr( str )
 
 end
 
-function write_indirect_name( name, base, no_remove )
+function write_indirect_name( name, no_remove )
 
-    base = tell_data() - base
+    local base = tell_data() - name.base
     push_data( name.offset )
     int32( base )
     pop_data()
@@ -268,11 +275,24 @@ function write_indirect_name( name, base, no_remove )
 
 end
 
-function write_all_names( base )
+function write_all_names()
 
     for _, name in ipairs(m_names) do
-        write_indirect_name( name, base, true )
+        write_indirect_name( name, true )
     end
+
+end
+
+function align4()
+
+    local p = tell_data()
+    local w = 4 - band(p, 3)
+
+    if w == 4 then return end
+
+    print("ALIGN: " .. p .. " : " .. w)
+
+    Write(m_file, str_rep('\xCD', w))
 
 end
 

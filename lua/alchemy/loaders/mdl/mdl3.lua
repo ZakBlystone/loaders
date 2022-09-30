@@ -1204,7 +1204,7 @@ end
 function mdl_meta:RenderMesh( msh )
 
     local mat = self:GetMeshMaterial(msh)
-    if not mat then return end
+    if not mat then mat = Material("hunter/myplastic") end
 
     render.SetMaterial(mat)
 
@@ -1338,9 +1338,21 @@ end
 
 local function LoadBundle( filename, path )
 
-    local mdl = LoadMDL( filename, path )
-    local vvd = LoadVVD( filename:sub(1, -4) .. "vvd", path, 1, true )
-    local vtx = LoadVTX( filename:sub(1, -4) .. "dx90.vtx", path )
+    local mdl_filename = filename
+    local vvd_filename = filename:sub(1, -4) .. "vvd"
+    local vtx_filename = filename:sub(1, -4) .. "dx90.vtx"
+
+    if mdl_filename:sub(-3,-1) == "dat" then
+        local base = string.GetPathFromFilename(filename)
+        mdl_filename = base .. "mdl.dat"
+        vvd_filename = base .. "vvd.dat"
+        vtx_filename = base .. "vtx.dat"
+        path = "DATA"
+    end
+
+    local mdl = LoadMDL( mdl_filename, path )
+    local vvd = LoadVVD( vvd_filename, path, 1, true )
+    local vtx = LoadVTX( vtx_filename, path )
     assert(mdl.checksum == vtx.checksum)
     assert(mdl.checksum == vvd.checksum)
 

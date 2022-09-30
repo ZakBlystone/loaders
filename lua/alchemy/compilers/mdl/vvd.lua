@@ -124,7 +124,7 @@ end
 
 function WriteStudioVVD( studio )
 
-    open_data("studiotest_vvd.dat")
+    open_data("studio/vvd.dat")
     vvd_header( studio )
     end_data()
 

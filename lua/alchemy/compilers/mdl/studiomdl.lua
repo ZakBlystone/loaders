@@ -64,6 +64,7 @@ end
 local m_bodypart = createMeta()
 local m_model = createMeta()
 local m_mesh = createMeta()
+local m_stripgroup = createMeta()
 local m_strip = createMeta()
 local m_bone = createMeta()
 local m_hitboxset = createMeta()
@@ -92,20 +93,30 @@ function m_strip:Init()
     self.indices = {}
     self.bbmins = Vector(math.huge, math.huge, math.huge)
     self.bbmaxs = Vector(-math.huge, -math.huge, -math.huge)
+    self.boneStateChanges = {}
+    self.numBones = 0
     return self
 
 end
 
 function m_strip:Vertex( position, normal, u, v, tx, ty, tz, tw, weights )
 
-    local vertices = self.mesh.model.part.studio.vertices
-    local tangents = self.mesh.model.part.studio.tangents
+    local vertices = self.group.mesh.model.part.studio.vertices
+    local tangents = self.group.mesh.model.part.studio.tangents
+
+    self.group.vertices[#self.group.vertices+1] = {
+        origMeshVertID = #vertices,
+        numBones = 0,
+        boneWeightIndex = {0,0,0},
+        boneID = {0,0,0},
+    }
 
     vmin_into(position, self.bbmins)
     vmax_into(position, self.bbmaxs)
-    vmin_into(position, self.mesh.bbmins)
-    vmax_into(position, self.mesh.bbmaxs)
-    self.mesh.model.numvertices = self.mesh.model.numvertices + 1
+    vmin_into(position, self.group.mesh.bbmins)
+    vmax_into(position, self.group.mesh.bbmaxs)
+    self.group.mesh.model.numvertices = self.group.mesh.model.numvertices + 1
+    self.numVerts = self.numVerts + 1
 
     local vertex = {
         position = position,
@@ -119,34 +130,47 @@ function m_strip:Vertex( position, normal, u, v, tx, ty, tz, tw, weights )
 
 end
 
+-- Regarding strips and stripgroups
+-- Stripgroups contain vtx indices and vertices
+-- Each strip within the group window's into the stripgroup's arrays via
+-- indexOffset, numIndices, vertOffset, numVerts
+
+-- The strip group contains all the indices for all strips
+-- Each index is local to the group (0 - n) mapping to the vtx vertex array
+-- The group's vtx vertex array maps origMeshVertID to the actual vertices
 function m_strip:Triangle( i0, i1, i2 )
 
-    local vertices = self.mesh.model.part.studio.vertices
-    local indices = self.indices
-    local base = #indices
+    local vertices = self.group.vertices
+    local indices = self.group.indices
+    local base = self.numIndices + self.indexOffset
     local vertoff = #vertices
-    indices[base+1] = i0 > 0 and i0 or vertoff + i0 + 1
-    indices[base+2] = i1 > 0 and i1 or vertoff + i1 + 1
-    indices[base+3] = i2 > 0 and i2 or vertoff + i2 + 1
+    indices[base+1] = (i0 > 0 and i0 or vertoff + i0 + 1) - 1
+    indices[base+2] = (i1 > 0 and i1 or vertoff + i1 + 1) - 1
+    indices[base+3] = (i2 > 0 and i2 or vertoff + i2 + 1) - 1
+
+    self.numIndices = self.numIndices + 3
 
 end
 
 function m_strip:Render()
 
-    local indices = self.indices
-    local vertices = self.mesh.model.part.studio.vertices
-    local tangents = self.mesh.model.part.studio.tangents
+    local indices = self.group.indices
+    local vverts = self.group.vertices
+    local vertices = self.group.mesh.model.part.studio.vertices
+    local tangents = self.group.mesh.model.part.studio.tangents
+
+    assert(vertices and tangents)
 
     mesh.Begin( MATERIAL_TRIANGLES, #indices / 3 )
 
-    for i=1, #indices, 3 do
-        local i0 = indices[i]
-        local i1 = indices[i+1]
-        local i2 = indices[i+2]
+    for i=1, self.numIndices, 3 do
+        local i0 = indices[self.indexOffset + i] + 1
+        local i1 = indices[self.indexOffset + i+1] + 1
+        local i2 = indices[self.indexOffset + i+2] + 1
 
-        local v0 = vertices[i0]
-        local v1 = vertices[i1]
-        local v2 = vertices[i2]
+        local v0 = vertices[vverts[i0].origMeshVertID+1]
+        local v1 = vertices[vverts[i1].origMeshVertID+1]
+        local v2 = vertices[vverts[i2].origMeshVertID+1]
 
         if v0 and v1 and v2 then
 
@@ -179,11 +203,49 @@ function m_strip:Render()
 
 end
 
--- MESH
-function m_mesh:Init( material )
+-- STRIPGROUP
+function m_stripgroup:Init()
 
     self.strips = {}
-    self.material = material
+    self.indices = {}
+    self.vertices = {}
+    return self
+
+end
+
+function m_stripgroup:Strip()
+
+    local strip = m_strip.New()
+    strip.group = self
+    strip.indexOffset = #self.indices
+    strip.vertOffset = 0
+    strip.numIndices = 0
+    strip.numVerts = 0
+    self.strips[#self.strips+1] = strip
+    return strip
+
+end
+
+function m_stripgroup:GetFlags()
+
+    return STRIPGROUP_IS_HWSKINNED
+
+end
+
+function m_stripgroup:Render()
+
+    for _, strip in ipairs(self.strips) do
+        strip:Render()
+    end
+
+end
+
+
+-- MESH
+function m_mesh:Init( matid, material )
+
+    self.stripgroups = {}
+    self.material = Material(material)
     self.flexes = {}
     self.materialidx = 0
     self.meshid = 0
@@ -193,12 +255,12 @@ function m_mesh:Init( material )
 
 end
 
-function m_mesh:Strip()
+function m_mesh:StripGroup()
 
-    local strip = m_strip.New()
-    strip.mesh = self
-    self.strips[#self.strips+1] = strip
-    return strip
+    local stripgroup = m_stripgroup.New()
+    stripgroup.mesh = self
+    self.stripgroups[#self.stripgroups+1] = stripgroup
+    return stripgroup
 
 end
 
@@ -207,7 +269,7 @@ function m_mesh:GetCenter() return (self.bbmins + self.bbmaxs) / 2 end
 function m_mesh:Render()
 
     render.SetMaterial(self.material)
-    for _, strip in ipairs(self.strips) do
+    for _, strip in ipairs(self.stripgroups) do
         strip:Render()
     end
 
@@ -227,7 +289,20 @@ end
 
 function m_model:Mesh( material )
 
-    local m = m_mesh.New( material )
+    local materials = self.part.studio.materials
+    local matID = 0
+    for i=1, #materials do
+        if materials[i] == material then
+            matID = i
+        end
+    end
+
+    if matID == 0 then
+        matID = #materials + 1
+        materials[#materials+1] = material
+    end
+
+    local m = m_mesh.New( matID, material )
     m.model = self
     self.meshes[#self.meshes+1] = m
     return m
@@ -299,11 +374,31 @@ function m_bone:GetContents() return CONTENTS_SOLID end
 function m_bone:GetSurfaceProp() return "solidmetal" end
 function m_bone:GetName() return self.name end
 
+-- HITBOX
+function m_hitbox:Init( name )
+
+    self.name = name
+    self.bone = 0
+    self.bbmins = Vector(-1,-1,-1)
+    self.bbmaxs = Vector(1,1,1)
+
+    return self
+
+end
+
 -- HITBOX SET
 function m_hitboxset:Init( name )
 
     self.hitboxes = {}
     self.name = name
+    return self
+
+end
+
+function m_hitboxset:Hitbox( name )
+
+    local box = m_hitbox.New( name )
+    self.hitboxes[#self.hitboxes+1] = box
     return self
 
 end
@@ -344,9 +439,10 @@ function m_studio:Init()
 
     self.bones_byname = {}
     self.hitboxsets_byname = {}
+    self.materials = {}
 
     self:Bone("rootbone")
-    self:HitboxSet("default")
+    self:HitboxSet("default"):Hitbox("hb0")
 
     return self
 
@@ -433,10 +529,46 @@ function m_studio:ComputeBounds()
 
 end
 
+function m_studio:ComputeMaterialList()
+
+    local cd_hash = {}
+    local m_hash = {}
+
+    for _, mat in ipairs(self.materials) do
+
+        local filename = tostring(mat)
+        local path = string.GetPathFromFilename(filename)
+        local file = string.GetFileFromFilename(filename)
+
+        if not cd_hash[path] then
+            cd_hash[path] = true
+            self.cdtextures[#self.cdtextures+1] = path
+        end
+
+        if not m_hash[file] then
+            m_hash[file] = true
+            self.textures[#self.textures+1] = {
+                name = file,
+                flags = 0,
+                used = 0,
+            }
+        end
+
+    end
+
+    print("CDTEXTURES:")
+    PrintTable(self.cdtextures)
+
+    print("TEXTURES:")
+    PrintTable(self.textures)
+
+end
+
 function m_studio:Write( filename )
 
     self:AssignMeshIDs()
     self:ComputeBounds()
+    self:ComputeMaterialList()
 
     local b,e = xpcall(WriteStudioMDL, function( err )
         print("Error writing mdl: " .. tostring(err))
@@ -445,6 +577,11 @@ function m_studio:Write( filename )
 
     local b,e = xpcall(WriteStudioVVD, function( err )
         print("Error writing vvd: " .. tostring(err))
+        debug.Trace()
+    end, self)
+
+    local b,e = xpcall(WriteStudioVTX, function( err )
+        print("Error writing vtx: " .. tostring(err))
         debug.Trace()
     end, self)
 

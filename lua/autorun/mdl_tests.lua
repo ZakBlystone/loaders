@@ -42,15 +42,19 @@ if CLIENT then
 
     local studio = studiomdl.New()
     local model = studio:BodyPart():Model()
-    local msh = model:Mesh( Material("models/flesh") )
-    local strip = msh:Strip()
+    local msh = model:Mesh( "models/flesh" )
+    local stripgroup = msh:StripGroup()
+    local strip0 = stripgroup:Strip()
+    make_cube(strip0, 30, Vector(0,0,50))
 
-    make_cube(strip, 30, Vector(0,0,50))
+    local strip1 = stripgroup:Strip()
+    make_cube(strip1, 30, Vector(200,0,50))
 
     studio:Write()
 
     hook.Add("PostDrawOpaqueRenderables", "test_studio", function()
     
+        if true then return end
         model:Render()
 
     end)
@@ -84,13 +88,16 @@ if CLIENT then
     --mdl_test = "models/props_lab/Cleaver.mdl"
     --mdl_test = "models/magnusson_device.mdl"
     --mdl_test = "models/antlion_worker.mdl"
+
+    mdl_test = "studio/mdl.dat"
+
     print("LOADING: " .. tostring(mdl_test))
     local loaded = Prof( "LoadModel", mdl.LoadModel, mdl_test )
     
     if true then
         --[[print(tostring(loaded))
         local keys = {}
-        for k,v in pairs(loaded) do
+        for k,v in pairs(loaded) do`
             keys[#keys+1] = k
         end
         table.sort(keys)
@@ -98,8 +105,10 @@ if CLIENT then
             print(v .. " : " .. tostring(loaded[v]))
         end]]
 
+        print("SKINS AND TEXTURES")
         PrintTable(loaded.skins)
         PrintTable(loaded.textures)
+        PrintTable(loaded.cdtextures)
         if loaded.hdr2 then PrintTable(loaded.hdr2) end
 
         PrintTable(loaded.bones)
@@ -107,6 +116,7 @@ if CLIENT then
     end
 
     --PrintTable(loaded.vvd.vertices)
+    --PrintTable(loaded.vtx)
     
     hook.Add("PostDrawOpaqueRenderables", "test_mdl", function()
     
@@ -121,7 +131,7 @@ if CLIENT then
     
     hook.Add("HUDPaint", "paint_spans", function()
     
-        --if true then return end
+        if true then return end
 
         local m_vis = mdl.get_coverage_vis()
         if not m_vis or not m_vis.ready then return end
