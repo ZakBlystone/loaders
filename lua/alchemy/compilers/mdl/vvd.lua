@@ -45,7 +45,7 @@ MAX_NUM_LODS = 8
 VVD_VERSION = 4
 VVD_IDENT = "IDSV"
 
-local default_weight = { {0, 1}, {0, 0}, {0, 0} }
+local default_weight = { {0, 1}, {0, 0}, {0, 0}, num = 1 }
 
 local function vvd_boneweight(v)
 
@@ -55,7 +55,7 @@ local function vvd_boneweight(v)
     return {
         weight = array_of(float32, {w[1][2],w[2][2],w[3][2]}),
         bone = array_of(uint8, {w[1][1],w[2][1],w[3][1]}),
-        numBones = uint8(#w),
+        numBones = uint8(w.num),
     }
 
 end

@@ -5,6 +5,7 @@ if CLIENT then return end
 local reader = include("alchemy/common/datareader.lua")
 local writer = include("alchemy/common/datawriter.lua")
 local quat = setmetatable({x=2, y=4, z=8, w=16}, reader.quat_meta)
+local quat2 = setmetatable({x=0.5, y=0.5, z=0.5, w=0.5}, reader.quat_meta)
 
 writer.open_data("datatest.dat")
 writer.uint32(120)
@@ -28,7 +29,7 @@ writer.matrix3x4( Matrix({
 }))
 writer.quat128(quat)
 --quat64
---quat48
+writer.quat48(quat2)
 writer.array_of(writer.uint16, {1,2,3,4,5})
 writer.nullstr("STRUCTURE")
 
@@ -36,14 +37,14 @@ local base = writer.tell_data()
 local t = {
     ind0 = writer.indirect_array( writer.uint16, {1,2,3,4,5}, false),
     ind1 = writer.indirect_array( writer.uint16, {1,2,3,4,5}, true),
-    name0 = writer.indirect_name("hello world"),
-    name1 = writer.indirect_name("winners don't do drugs"),
+    name0 = writer.indirect_name("hello world", base),
+    name1 = writer.indirect_name("winners don't do drugs", base),
 }
 
 writer.write_indirect_array( t, base, "ind0" )
 writer.write_indirect_array( t, base, "ind1" )
-writer.write_indirect_name( t.name0, base )
-writer.write_indirect_name( t.name1, base )
+writer.write_indirect_name( t.name0 )
+writer.write_indirect_name( t.name1 )
 
 writer.end_data()
 
@@ -82,7 +83,7 @@ test(reader.matrix3x4(), Matrix({
 }))
 test(reader.quat128(), quat)
 --quat64
---quat48
+test(reader.quat48(), quat2)
 testA(reader.array_of(reader.uint16, 5), {1,2,3,4,5})
 test(reader.nullstr(), "STRUCTURE")
 

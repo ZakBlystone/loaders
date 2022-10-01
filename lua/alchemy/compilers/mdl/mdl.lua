@@ -44,6 +44,13 @@ local __lib = alchemy.MakeLib({
 STUDIO_IDENT = "IDST"
 STUDIO_VERSION = 48
 
+STUDIO_ANIM_RAWPOS	= 0x01 // Vector48
+STUDIO_ANIM_RAWROT	= 0x02 // Quaternion48
+STUDIO_ANIM_ANIMPOS	= 0x04 // mstudioanim_valueptr_t
+STUDIO_ANIM_ANIMROT	= 0x08 // mstudioanim_valueptr_t
+STUDIO_ANIM_DELTA	= 0x10
+STUDIO_ANIM_RAWROT2	= 0x20 // Quaternion64
+
 local function mdl_bone(v)
     
     local base = tell_data()
@@ -58,12 +65,12 @@ local function mdl_bone(v)
         rotscale = vector32(Vector(0.000012, 0.000012, 0.000048)),
         poseToBone = matrix3x4(v:GetBindMatrix()),
         qAlignment = quat128(v:GetQuatAlignment()),
-        flags = v:GetFlags(),
+        flags = int32(v:GetFlags()),
         proctype = int32(0),
         procindex = int32(0),
         physicsbone = int32(0),
         surfaceprop = indirect_name(v:GetSurfaceProp(), base),
-        contents = v:GetContents(),
+        contents = int32(v:GetContents()),
         unused = array_of(int32, {0,0,0,0,0,0,0,0}),
     }
 
@@ -107,11 +114,144 @@ local function mdl_hitboxset(v)
 end
 
 local function mdl_animdesc(v)
-    error("mdl_animdesc Not yet implemented")
+
+    local base = tell_data()
+    local anim = {
+        baseptr = base,
+        studiooffset = int32(0),
+        name = indirect_name(v.name, base),
+        fps = float32(v.fps),
+        flags = int32(0),
+        numframes = int32(v.numframes),
+        movements = indirect_array(mdl_movement, v.movements),
+        _unused1 = array_of(int32, {0,0,0,0,0,0}),
+        animblock = int32(0),
+        animindex = int32(0),
+        numikrules = int32(0),
+        ikruleindex = int32(0),
+        animblockikruleindex = int32(0),
+        localhierarchy = indirect_array(mdl_localhierarchy, v.localhierarchy),
+        sectionindex = int32(0),
+        sectionframes = int32(0),
+        zeroframespan = int16(0),
+        zeroframecount = int16(0),
+        zeroframeindex = int32(0),
+        zeroframestalltime = float32(0),
+    }
+
+    write_indirect_array( anim, base, "movements" )
+    write_indirect_array( anim, base, "localhierarchy" )
+
+    return anim
+
 end
 
+local function mdl_event(v)
+
+    local base = tell_data()
+    local event = {
+        cycle = float32(0), -- fill this
+        event = int32(0), -- fill this
+        type = int32(0), -- fill this
+        options = charstr(v.options, 64),
+        name = indirect_name(v.name, base),
+    }
+
+    return event
+
+end
+
+local function mdl_autolayer(v)
+
+    return {
+        iSequence = int16(0), -- fill this
+        iPose = int16(0), -- fill this
+        flags = int32(0), -- fill this
+        _start = float32(0), -- fill this
+        _peak = float32(0), -- fill this
+        _tail = float32(0), -- fill this
+        _end = float32(0), -- fill this
+    }
+
+end
+
+local function mdl_iklock(v)
+
+    local lock = {
+        chain = int32(0), -- fill this
+        flPosWeight = float32(0), -- fill this
+        flLocalQWeight = float32(0), -- fill this
+        flags = int32(0), -- fill this
+    }
+
+    array_of(int32, {0,0,0,0}) -- unused
+
+    return lock
+
+end
+
+local function mdl_activitymodifier(v)
+
+    local base = tell_data()
+    local actmod = {
+        name = indirect_name(v.name, base),
+    }
+
+    return actmod
+
+end
+
+
 local function mdl_seqdesc(v)
-    error("mdl_seqdesc Not yet implemented")
+
+    local base = tell_data()
+    local seq = {
+        baseptr = base,
+        studiooffset = int32(0),
+        label = indirect_name(v.name, base),
+        actname = indirect_name("", base),
+        flags = int32(0),
+        activity = int32(-1),
+        actweight = int32(0),
+        events = indirect_array(mdl_event, v.events),
+        bbmin = vector32(v.bbmins),
+        bbmax = vector32(v.bbmaxs),
+        numblends = int32(1),
+        animindexindex = int32(0),
+        movementindex = int32(0),
+        groupsize = array_of(int32, {1, 1}),
+        paramindex = array_of(int32, {-1, -1}),
+        paramstart = array_of(float32, {0, 0}),
+        paramend = array_of(float32, {0, 0}),
+        paramparent = int32(0),
+        fadeintime = float32(0.2),
+        fadeouttime = float32(0.2),
+        localentrynode = int32(0),
+        localexitnode = int32(0),
+        nodeflags = int32(0),
+        entryphase = float32(0),
+        exitphase = float32(0),
+        lastframe = float32(0),
+        nextseq = int32(0),
+        pose = int32(0),
+        numikrules = int32(0),
+        autolayers = indirect_array(mdl_autolayer, v.autolayers),
+        weightlistindex = int32(0),
+        posekeyindex = int32(0),
+        iklocks = indirect_array(mdl_iklock, v.iklocks),
+        keyvalueindex = int32(0),
+        keyvaluesize = int32(0),
+        cycleposeindex = int32(0),
+        activitymodifiers = indirect_array(mdl_activitymodifier, v.activitymodifiers, true),
+    }
+
+    write_indirect_array( seq, base, "events" )
+    write_indirect_array( seq, base, "autolayers" )
+    write_indirect_array( seq, base, "iklocks" )
+    write_indirect_array( seq, base, "activitymodifiers" )
+
+    return seq
+
 end
 
 local function mdl_texture(v)
@@ -158,7 +298,12 @@ local function mdl_mesh(v)
         materialparam = int32(0), -- figure out
         meshid = int32(v.meshid),
         center = vector32(v:GetCenter()),
+        modelvertexdata = int32(0),
+        numLODVertexes = array_of(int32, {0,0,0,0,0,0,0,0})
     }
+
+    -- unused
+    array_of(int32, {0,0,0,0,0,0,0,0})
 
     write_indirect_array( mesh, base, "flexes" )
 
@@ -183,16 +328,18 @@ local function mdl_model(v)
         numattachments = int32(0), -- figure out
         attachmentindex = int32(0), -- figure out
         eyeballs = indirect_array( mdl_eyeball, v.eyeballs ),
-        unused8 = array_of(int32, {0,0,0,0,0,0,0,0,0,0}),
+        pVertexData = int32(0),
+        pTangentData = int32(0),
+        unused8 = array_of(int32, {0,0,0,0,0,0,0,0}),
     }
 
     write_indirect_array( model, base, "meshes" )
     write_indirect_array( model, base, "eyeballs" )
 
     for _, mesh in ipairs( model.meshes ) do
-        local offset = tell_data() - mesh.base
+        local offset = base - mesh.base
         push_data( mesh.modelindex )
-        int32(base)
+        int32(offset)
         pop_data()
     end
 
@@ -267,6 +414,17 @@ local function mdl_flexcontrollerui(v)
     error("mdl_flexcontrollerui Not yet implemented")
 end
 
+local function WriteAnimBlock(v)
+
+    -- Placeholder, write one frame
+    local base = tell_data()
+    local bone = uint8(0)
+    local flags = uint8(STUDIO_ANIM_RAWROT)
+    local nextoffset = uint16(0)
+    quat48( quat(0.5,0.5,0.5,0.5) )
+
+end
+
 local function mdl_header(v)
 
     local base = tell_data()
@@ -332,6 +490,7 @@ local function mdl_header(v)
     }
 
     -- header 2
+    align4()
     local hdr2_base = tell_data()
     local hdr2 = {
         numsrcbonetransform = int32(0),
@@ -341,8 +500,6 @@ local function mdl_header(v)
         linearboneindex = int32(0),
         reserved = charstr("", 4*59),
     }
-
-    align4()
 
     -- Write header2
     push_data( header.studiohdr2index )
@@ -369,7 +526,20 @@ local function mdl_header(v)
     align4() write_indirect_array( header, base, "animblocks" )
     align4() write_indirect_array( header, base, "flexcontrollerui" )
 
+    for _, v in ipairs(header.local_anims) do
+        push_data(v.studiooffset)
+        int32(base - v.baseptr)
+        pop_data()
+    end
+
+    for _, v in ipairs(header.local_sequences) do
+        push_data(v.studiooffset)
+        int32(base - v.baseptr)
+        pop_data()
+    end
+
     -- Write skins
+    align4()
     local skins_offset = tell_data() - base
     push_data( header.skinindex )
     int32(skins_offset)
@@ -379,13 +549,12 @@ local function mdl_header(v)
     for i=1, 1+#skins do
         for j=1, #v.textures do
             local remap = (skins[i-1] or {})[j] or j
-            uint16(remap)
+            int16(remap-1)
         end
     end
 
-    write_all_names()
-
     -- Write bone index
+    align4()
     local bone_index_offset = tell_data() - base
     push_data( header.bonetablebynameindex )
     int32( bone_index_offset )
@@ -394,6 +563,40 @@ local function mdl_header(v)
     for i=1, #v.bones do
         uint8(i-1)
     end
+
+    -- Write anims
+    align4()
+    for i, anim in ipairs(header.local_anims) do
+
+        local block_index = tell_data() - anim.baseptr
+        push_data(anim.animindex)
+        int32(block_index)
+        pop_data()
+        WriteAnimBlock(v.localanims[i])
+
+    end
+
+    -- Write sequences
+    align4()
+    for i, seq in ipairs(header.local_sequences) do
+
+        local wlist_index = tell_data() - seq.baseptr
+        push_data(seq.weightlistindex)
+        int32(wlist_index)
+        pop_data()
+
+        for i=1, #v.bones do
+            float32(1)
+        end
+
+    end
+
+    write_all_names()
+
+    local length = tell_data()
+    push_data( header.length )
+    int32(length)
+    pop_data()
 
 end
 

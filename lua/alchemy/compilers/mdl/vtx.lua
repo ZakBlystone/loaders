@@ -56,7 +56,7 @@ STRIPGROUP_SUPPRESS_HW_MORPH = 0x08
 MESH_IS_TEETH = 0x01
 MESH_IS_EYES = 0x02
 
-VTX_VERSION = 4
+VTX_VERSION = 7
 
 MAX_NUM_BONES_PER_VERT = 3
 MAX_NUM_LODS = 8
@@ -171,8 +171,33 @@ local function vtx_bodypart(v)
 
 end
 
+local function vtx_materialreplacement(v)
+
+    local base = tell_data()
+    local replace = {
+        materialID = int16(v.materialID),
+        nameidx = indirect_name(v.name),
+    }
+
+    return replace
+
+end
+
+local function vtx_materialreplacementlist(v)
+
+    local base = tell_data()
+    local replacelist = {
+        replacements = indirect_array(vtx_materialreplacement, v.replacements)
+    }
+
+    write_indirect_array(replacelist, base, "replacements")
+    return replacelist
+
+end
+
 local function vtx_header(v)
 
+    local base = tell_data()
     local header = {
         version = int32(VTX_VERSION),
         vertCacheSize = int32(24), -- figure out
@@ -188,6 +213,16 @@ local function vtx_header(v)
     --PrintTable(header)
 
     write_indirect_array(header, 0, "bodyParts")
+
+    local list_offset = tell_data() - base
+    push_data(header.materialReplacementListOffset)
+    int32(list_offset)
+    pop_data()
+
+    vtx_materialreplacementlist( {
+        replacements = {},
+    } )
+
     return header
 
 end

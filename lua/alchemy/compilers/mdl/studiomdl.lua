@@ -106,8 +106,8 @@ function m_strip:Vertex( position, normal, u, v, tx, ty, tz, tw, weights )
 
     self.group.vertices[#self.group.vertices+1] = {
         origMeshVertID = #vertices,
-        numBones = 0,
-        boneWeightIndex = {0,0,0},
+        numBones = 1,
+        boneWeightIndex = {0,1,2},
         boneID = {0,0,0},
     }
 
@@ -431,9 +431,12 @@ function m_studio:Init()
     self.vertices = {}
     self.tangents = {}
     self.keyvalues = [[
+mdlkeyvalue
 {
-    prop_data {
-    "base" "Metal.Large"  }
+ prop_data 
+ {
+  "base" "Metal.Large"
+ }
 }
     ]]
 
@@ -450,7 +453,7 @@ end
 
 -- todo: implement
 function m_studio:GetChecksum() return 8888 end
-function m_studio:GetName() return "generated-model" end
+function m_studio:GetName() return "generated" end
 function m_studio:GetEyePos() return Vector(0,0,0) end
 function m_studio:GetIllumPos() return Vector(0,0,0) end
 function m_studio:GetHullMin() return self.bbmins end
@@ -569,6 +572,26 @@ function m_studio:Write( filename )
     self:AssignMeshIDs()
     self:ComputeBounds()
     self:ComputeMaterialList()
+
+    if #self.localsequences == 0 then
+        self.localsequences[#self.localsequences+1] = {
+            name = "idle",
+            bbmins = self.bbmins,
+            bbmaxs = self.bbmaxs,
+            events = {},
+            autolayers = {},
+            iklocks = {},
+            activitymodifiers = {},
+        }
+
+        self.localanims[#self.localanims+1] = {
+            name = "@idle",
+            fps = 30,
+            numframes = 1,
+            movements = {},
+            localhierarchy = {},
+        }
+    end
 
     local b,e = xpcall(WriteStudioMDL, function( err )
         print("Error writing mdl: " .. tostring(err))

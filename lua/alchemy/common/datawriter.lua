@@ -160,8 +160,18 @@ function quat64()
     assert(false, "Not yet implemented")
 end
 
-function quat48()
-    assert(false, "Not yet implemented")
+function quat48( v )
+
+    local x = math.Clamp(math.floor(v.x * 32768 + 32768), 0, 65535)
+    local y = math.Clamp(math.floor(v.y * 32768 + 32768), 0, 65535)
+    local z = math.Clamp(math.floor(v.z * 16384 + 16384), 0, 32767)
+
+    if v.w < 0 then z = bor(z, 0x8000) end
+
+    uint16(x)
+    uint16(y)
+    uint16(z)
+
 end
 
 function array_of( f, v )
@@ -290,7 +300,7 @@ function align4()
 
     if w == 4 then return end
 
-    print("ALIGN: " .. p .. " : " .. w)
+    print("----- ALIGN: " .. p .. " : " .. w)
 
     Write(m_file, str_rep('\xCD', w))
 

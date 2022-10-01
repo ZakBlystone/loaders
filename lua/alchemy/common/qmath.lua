@@ -124,13 +124,13 @@ function quat_meta:Normalize()
 
 end
 
-function quat()
+function quat(x,y,z,w)
 
     return setmetatable( {
-        x = 0,
-        y = 0,
-        z = 0,
-        w = 0,
+        x = x or 0,
+        y = y or 0,
+        z = z or 0,
+        w = w or 0,
     }, quat_meta)
 
 end

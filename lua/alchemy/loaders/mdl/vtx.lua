@@ -133,7 +133,7 @@ local function vtx_stripgroup()
         indices[i] = vidx
     end
 
-    group.vertices = nil
+    --group.vertices = nil
 
     return group
 
@@ -193,8 +193,34 @@ local function vtx_bodypart()
 
 end
 
+local function vtx_materialreplacement()
+
+    local base = tell_data()
+    local replace = {
+        materialID = int16(),
+        nameidx = int32(),
+    }
+
+    indirect_name(replace, base)
+    return replace
+
+end
+
+local function vtx_materialreplacementlist()
+
+    local base = tell_data()
+    local replacelist = {
+        replacements = indirect_array(vtx_materialreplacement)
+    }
+
+    load_indirect_array(replacelist, base, "replacements")
+    return replacelist
+
+end
+
 local function vtx_header()
 
+    local base = tell_data()
     local header = {
         version = int32(),
         vertCacheSize = int32(),
@@ -206,6 +232,13 @@ local function vtx_header()
         materialReplacementListOffset = int32(),
         bodyParts = indirect_array( vtx_bodypart ),
     }
+
+    print("MATERIAL REPLACEMENT LIST: " .. header.materialReplacementListOffset)
+
+    push_data(base + header.materialReplacementListOffset)
+    header.materialReplacementListOffset = nil
+    header.materialReplacementList = vtx_materialreplacementlist()
+    pop_data()
 
     load_indirect_array(header, 0, "bodyParts")
     return header

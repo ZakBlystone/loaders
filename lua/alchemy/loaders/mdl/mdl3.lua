@@ -630,9 +630,11 @@ local function mdl_mesh()
         materialparam = int32(),
         meshid = int32(),
         center = vector32(),
+        modelvertexdata = int32(),
+        numLODVertexes = array_of(int32, 8),
     }
 
-    array_of(int32, 17) -- unused
+    array_of(int32, 8) -- unused
 
     mesh.modelindex = mesh.modelindex + base
     load_indirect_array(mesh, base, "flexes")
@@ -687,9 +689,11 @@ local function mdl_model()
         numattachments = int32(),
         attachmentindex = int32() + base,
         eyeballs = indirect_array(mdl_eyeball),
+        pVertexData = int32(),
+        pTangentData = int32(),
     }
 
-    array_of(int32, 10) -- unused
+    array_of(int32, 8) -- unused
 
     load_indirect_array(model, base, "meshes")
     load_indirect_array(model, base, "eyeballs")
@@ -1011,7 +1015,7 @@ local function mdl_header()
         for i=1, header.numskinfamilies do
             local skin = {}
             for j=1, header.numskinref do
-                skin[j] = uint16()
+                skin[j] = int16()
             end
             header.skins[i] = skin
         end
@@ -1041,7 +1045,7 @@ STUDIO_ANIM_RAWROT2	= 0x20 // Quaternion64
 
 local function LoadFrameData(numframes, bone, pos)
 
-    --print("LOAD FRAMES: " .. numframes)
+    print("LOAD FRAMES: " .. numframes)
     local base = tell_data()
     local offsets = array_of(int16, 3)
     local values = {{},{},{}}
@@ -1106,8 +1110,9 @@ local function LoadAnimBlock(numframes, bones)
             animrot = animrot,
             delta = delta,
         }
-        --print(bone, flags, nextoffset)
-        --if rawpos or true then PrintTable(posrot) end
+        print("***ANIM FRAMEDATA")
+        print(bone, flags, nextoffset)
+        if rawpos or true then PrintTable(posrot) end
         if nextoffset == 0 then break end
         seek_data(base + nextoffset)
     end
@@ -1306,7 +1311,7 @@ local function LoadMDL( filename, path )
     for _, anim in ipairs(header.local_anims) do
 
         if anim.animblock == 0 then
-            print("Anim: " .. anim.name)
+            print("Anim: " .. anim.name .. " : " .. anim.numframes .. "@" .. anim.fps)
             local base = anim.baseptr
             local ptr = base + anim.animindex
             push_data(ptr)
@@ -1315,6 +1320,20 @@ local function LoadMDL( filename, path )
             span:Stop()
             pop_data()
         end
+
+    end
+
+    local bone_count = #header.bones
+    for _, seq in ipairs(header.local_sequences) do
+
+        local weights = {}
+        push_data(seq.baseptr + seq.weightlistindex)
+        for i=1, bone_count do
+            weights[#weights+1] = float32()
+        end
+        pop_data()
+        seq.weightlist = weights
+        seq.weightlistindex = nil
 
     end
 

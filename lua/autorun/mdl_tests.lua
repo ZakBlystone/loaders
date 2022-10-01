@@ -45,12 +45,36 @@ if CLIENT then
     local msh = model:Mesh( "models/flesh" )
     local stripgroup = msh:StripGroup()
     local strip0 = stripgroup:Strip()
-    make_cube(strip0, 30, Vector(0,0,50))
+    make_cube(strip0, 30, Vector(0,0,0))
 
-    local strip1 = stripgroup:Strip()
-    make_cube(strip1, 30, Vector(200,0,50))
+    --local strip1 = stripgroup:Strip()
+    --make_cube(strip1, 30, Vector(200,0,50))
 
     studio:Write()
+
+    if false then
+
+        local gma = alchemy.Compiler("gma")
+        gma.GMA_Write("modeltest",
+        {
+            --["models/avatar_frame.dx80.vtx"] = GMA_DiskFile( "mdl_input/avatar_frame.dx80.vtx" ),
+            ["models/generated.dx90.vtx"] = gma.GMA_DiskFile( "studio/vtx.dat" ),
+            ["models/generated.dx80.vtx"] = gma.GMA_DiskFile( "studio/vtx.dat" ),
+            ["models/generated.sw.vtx"] = gma.GMA_DiskFile( "studio/vtx.dat" ),
+            ["models/generated.mdl"] = gma.GMA_DiskFile( "studio/mdl.dat" ),
+            --["models/avatar_frame.sw.vtx"] = GMA_DiskFile( "mdl_input/avatar_frame.sw.vtx" ),
+            ["models/generated.vvd"] = gma.GMA_DiskFile( "studio/vvd.dat" ),
+        })
+
+        gma.GMA_Mount("modeltest")
+
+        G_TEST_MODEL = nil
+        G_TEST_MODEL = G_TEST_MODEL or ents.CreateClientProp("models/generated.mdl")
+        G_TEST_MODEL:SetPos(Vector(0,0,100))
+        G_TEST_MODEL:Spawn()
+        --G_TEST_MODEL:Remove()
+
+    end
 
     hook.Add("PostDrawOpaqueRenderables", "test_studio", function()
     
@@ -105,22 +129,28 @@ if CLIENT then
             print(v .. " : " .. tostring(loaded[v]))
         end]]
 
+        --PrintTable(loaded.bodyparts)
+
         print("SKINS AND TEXTURES")
         PrintTable(loaded.skins)
         PrintTable(loaded.textures)
         PrintTable(loaded.cdtextures)
-        if loaded.hdr2 then PrintTable(loaded.hdr2) end
+        --if loaded.hdr2 then PrintTable(loaded.hdr2) end
 
-        PrintTable(loaded.bones)
-        PrintTable(loaded.hitbox_sets)
+        --PrintTable(loaded.bones)
+        --PrintTable(loaded.hitbox_sets)
+        print("ANIMS")
+        --PrintTable(loaded.local_anims)
+        print("SEQUENCES")
+        PrintTable(loaded.local_sequences)
     end
 
     --PrintTable(loaded.vvd.vertices)
-    --PrintTable(loaded.vtx)
+    --PrintTable(loaded.vtx.materialReplacementList)
     
     hook.Add("PostDrawOpaqueRenderables", "test_mdl", function()
     
-        --if true then return end
+        if true then return end
         if loaded then
             loaded:Render()
         end
