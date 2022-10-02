@@ -1032,6 +1032,8 @@ local function mdl_header()
     indirect_name(header, base, "animblocknameidx")
     indirect_name(header, base, "keyvaluesidx", "keyvaluessize")
 
+    header.rawheader = table.Copy(header)
+
     return header
 
 end

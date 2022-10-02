@@ -220,7 +220,7 @@ function write_indirect_array( tbl, base, field, aux, ... )
     if num == 0 then
         print("WRITE ZERO ARRAY AT: " .. arr.offset)
         push_data( arr.offset )
-        uint32( 0xABABABAB )
+        uint32( 0 )
         pop_data()
         return 
     end

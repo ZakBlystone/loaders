@@ -88,12 +88,21 @@ local function vvd_header(v)
     assert(#v.vertices == #v.tangents, "Vertex tangent count mismatch")
     print("WRITE: " .. #v.vertices .. " vertices")
 
+    local num_vertices = #v.vertices
     local header = {
         id = charstr(VVD_IDENT,4),
         version = int32(VVD_VERSION),
         checksum = int32(v:GetChecksum()),
         numLODs = int32(1),
-        numLODVertices = array_of(int32, {#v.vertices, 0, 0, 0, 0, 0, 0, 0}),
+        numLODVertices = array_of(int32, {
+            num_vertices, 
+            num_vertices, 
+            num_vertices, 
+            num_vertices, 
+            num_vertices, 
+            num_vertices, 
+            num_vertices, 
+            num_vertices}),
         numFixups = int32(0),
         fixupTableStart = int32(0),
         vertexDataStart = int32(0),

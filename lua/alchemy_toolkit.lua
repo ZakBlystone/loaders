@@ -52,6 +52,8 @@ function MakeLib( opts )
 
 end
 
+utils = include("alchemy/common/utils.lua")
+
 local loader_formats = {
     ["bsp"] = function()
         if not __alchemy.bsp_loader then

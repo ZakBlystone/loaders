@@ -116,6 +116,7 @@ function m_strip:Vertex( position, normal, u, v, tx, ty, tz, tw, weights )
     vmin_into(position, self.group.mesh.bbmins)
     vmax_into(position, self.group.mesh.bbmaxs)
     self.group.mesh.model.numvertices = self.group.mesh.model.numvertices + 1
+    self.group.mesh.numvertices = self.group.mesh.numvertices + 1
     self.numVerts = self.numVerts + 1
 
     local vertex = {
@@ -249,6 +250,7 @@ function m_mesh:Init( matid, material )
     self.flexes = {}
     self.materialidx = 0
     self.meshid = 0
+    self.numvertices = 0
     self.bbmins = Vector(math.huge, math.huge, math.huge)
     self.bbmaxs = Vector(-math.huge, -math.huge, -math.huge)
     return self
@@ -453,7 +455,7 @@ end
 
 -- todo: implement
 function m_studio:GetChecksum() return 8888 end
-function m_studio:GetName() return "generated" end
+function m_studio:GetName() return "generated.mdl" end
 function m_studio:GetEyePos() return Vector(0,0,0) end
 function m_studio:GetIllumPos() return Vector(0,0,0) end
 function m_studio:GetHullMin() return self.bbmins end

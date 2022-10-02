@@ -3,6 +3,7 @@ include("alchemy_toolkit.lua")
 alchemy.Init()
 
 local mdl = alchemy.Loader("mdl")
+local utils = alchemy.utils
 
 --if true then return end
 
@@ -47,22 +48,20 @@ if CLIENT then
     local strip0 = stripgroup:Strip()
     make_cube(strip0, 30, Vector(0,0,0))
 
+    studio:Write()
+
     --local strip1 = stripgroup:Strip()
     --make_cube(strip1, 30, Vector(200,0,50))
-
-    studio:Write()
 
     if false then
 
         local gma = alchemy.Compiler("gma")
         gma.GMA_Write("modeltest",
         {
-            --["models/avatar_frame.dx80.vtx"] = GMA_DiskFile( "mdl_input/avatar_frame.dx80.vtx" ),
             ["models/generated.dx90.vtx"] = gma.GMA_DiskFile( "studio/vtx.dat" ),
             ["models/generated.dx80.vtx"] = gma.GMA_DiskFile( "studio/vtx.dat" ),
             ["models/generated.sw.vtx"] = gma.GMA_DiskFile( "studio/vtx.dat" ),
             ["models/generated.mdl"] = gma.GMA_DiskFile( "studio/mdl.dat" ),
-            --["models/avatar_frame.sw.vtx"] = GMA_DiskFile( "mdl_input/avatar_frame.sw.vtx" ),
             ["models/generated.vvd"] = gma.GMA_DiskFile( "studio/vvd.dat" ),
         })
 
@@ -98,7 +97,6 @@ if CLIENT then
     mdl_test = "models/Combine_turrets/Floor_turret.mdl"
     --mdl_test = "models/combine_camera/combine_camera.mdl"
     --mdl_test = "models/AntLion.mdl"
-    mdl_test = "models/props_phx/construct/metal_plate1.mdl"
     --mdl_test = "models/dog.mdl"
     --mdl_test = "models/Zombie/Classic_legs.mdl"
     --mdl_test = "models/raptor/aeon_enhanced/aeon.mdl"
@@ -113,7 +111,10 @@ if CLIENT then
     --mdl_test = "models/magnusson_device.mdl"
     --mdl_test = "models/antlion_worker.mdl"
 
-    mdl_test = "studio/mdl.dat"
+    mdl_test = "models/props_lab/binderblue.mdl"
+    mdl_test = "models/maxofs2d/companion_doll.mdl"
+    mdl_test = "models/props_phx/construct/metal_plate1.mdl"
+    --mdl_test = "studio/mdl.dat"
 
     print("LOADING: " .. tostring(mdl_test))
     local loaded = Prof( "LoadModel", mdl.LoadModel, mdl_test )
@@ -131,18 +132,19 @@ if CLIENT then
 
         --PrintTable(loaded.bodyparts)
 
-        print("SKINS AND TEXTURES")
-        PrintTable(loaded.skins)
-        PrintTable(loaded.textures)
-        PrintTable(loaded.cdtextures)
+        --PrintTable(loaded.rawheader)
+        MsgC(Color(255,255,255), string.rep("=", 80) .. "\n")
+        utils.print_table(loaded, "model", {"vertices", "indices", "rawheader"})
+
         --if loaded.hdr2 then PrintTable(loaded.hdr2) end
 
         --PrintTable(loaded.bones)
         --PrintTable(loaded.hitbox_sets)
-        print("ANIMS")
+        --print("ANIMS")
         --PrintTable(loaded.local_anims)
-        print("SEQUENCES")
-        PrintTable(loaded.local_sequences)
+        --print("SEQUENCES")
+        --PrintTable(loaded.local_sequences)
+        --print(loaded.name)
     end
 
     --PrintTable(loaded.vvd.vertices)

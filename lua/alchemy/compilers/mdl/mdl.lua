@@ -291,7 +291,7 @@ local function mdl_mesh(v)
         base = base,
         material = int32(v.materialidx),
         modelindex = int32(0),
-        numvertices = int32(0), -- cache
+        numvertices = int32(v.numvertices), -- cache
         vertexoffset = int32(0), -- cache
         flexes = indirect_array( mdl_flex, v.flexes ),
         materialtype = int32(0), -- figure out
@@ -299,7 +299,15 @@ local function mdl_mesh(v)
         meshid = int32(v.meshid),
         center = vector32(v:GetCenter()),
         modelvertexdata = int32(0),
-        numLODVertexes = array_of(int32, {0,0,0,0,0,0,0,0})
+        numLODVertexes = array_of(int32, {
+            v.numvertices,
+            v.numvertices,
+            v.numvertices,
+            v.numvertices,
+            v.numvertices,
+            v.numvertices,
+            v.numvertices,
+            v.numvertices})
     }
 
     -- unused
@@ -322,7 +330,7 @@ local function mdl_model(v)
         type = int32(0), -- figure out
         boundingradius = float32(0), -- figure out
         meshes = indirect_array( mdl_mesh, v.meshes ),
-        numvertices = int32(0), -- cache
+        numvertices = int32(v.numvertices), -- cache
         vertexindex = int32(0), -- cache
         tangentsindex = int32(0), -- cache
         numattachments = int32(0), -- figure out
