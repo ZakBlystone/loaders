@@ -610,8 +610,7 @@ function meta:InsertRadius()
 
     self.surface.mass_center = center
     self.surface.upper_limit_radius = radius
-
-    --self.surface:SetMaxSurfaceDeviation()
+    self.surface:SetMaxSurfaceDeviation(1 * 250)
 
 end
 

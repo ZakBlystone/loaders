@@ -188,18 +188,18 @@ local function LoadPhysCollideCompactSurface( header, index )
     local size = header.surfaceSize
     local surf = CompactSurface()
 
-    for k,v in pairs(surf) do
-        out_surface[k] = v
-    end
-
     local num_ledges = 0
     local num_tris = 0
     local num_nodes = 0
 
-    surf.max_factor_surface_deviation = band( surf.size_and_max_surface_deviation, 0xFF )
+    surf.max_factor_surface_deviation = band( surf.size_and_max_surface_deviation, 0xFF ) * (1/250)
     surf.byte_size = rshift( band( surf.size_and_max_surface_deviation, 0xFFFFFF00 ), 8 )
     surf.size_and_max_surface_deviation = nil
-    surf.radius_deviation = surf.max_factor_surface_deviation * (1/250) * surf.upper_limit_radius
+    surf.radius_deviation = surf.max_factor_surface_deviation * surf.upper_limit_radius
+
+    for k,v in pairs(surf) do
+        out_surface[k] = v
+    end
 
     local function WalkTo( ptr, is_node )
 

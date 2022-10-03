@@ -381,8 +381,8 @@ function m_hitbox:Init( name )
 
     self.name = name
     self.bone = 0
-    self.bbmins = Vector(-1,-1,-1)
-    self.bbmaxs = Vector(1,1,1)
+    self.bbmins = Vector(-30,-30,-30)
+    self.bbmaxs = Vector(30,30,30)
 
     return self
 

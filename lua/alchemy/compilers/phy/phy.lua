@@ -184,7 +184,7 @@ solid {
 "damping" "0"
 "rotdamping" "0"
 "intertia" "1"
-"volume" "6000"
+"volume" "216000"
 }
 editparams {
 "rootname" ""

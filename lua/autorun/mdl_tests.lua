@@ -123,7 +123,7 @@ if CLIENT then
 
     --mdl_test = "models/props_lab/binderblue.mdl"
     --mdl_test = "models/maxofs2d/companion_doll.mdl"
-    --mdl_test = "models/props_phx/construct/metal_plate1.mdl"
+    mdl_test = "models/props_phx/construct/metal_plate1.mdl"
     mdl_test = "studio/mdl.dat"
 
     print("LOADING: " .. tostring(mdl_test))
@@ -163,7 +163,7 @@ if CLIENT then
     --PrintTable(loaded.vvd.vertices)
     --PrintTable(loaded.vtx.materialReplacementList)
 
-    --utils.print_table(loaded.phy)
+    utils.print_table(loaded.phy)
     
     hook.Add("PostDrawOpaqueRenderables", "test_mdl", function()
     
