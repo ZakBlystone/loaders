@@ -82,6 +82,12 @@ local compiler_formats = {
         end
         return __alchemy.gma_compiler
     end,
+    ["phy"] = function()
+        if not __alchemy.phy_compiler then
+            __alchemy.phy_compiler = include("alchemy/compilers/phy/phy.lua")
+        end
+        return __alchemy.phy_compiler
+    end,
 }
 
 function Loader( x )

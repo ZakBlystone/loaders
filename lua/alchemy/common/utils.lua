@@ -45,16 +45,18 @@ local colors = {
     Color(182,182,182),
 }
 
-local function recursive_print_table(t, depth, max, exclude, parent, visited)
+local function recursive_print_table(t, depth, maxDepth, maxEntries, exclude, parent, visited)
 
     local vcolor = Color(255,255,255)
     local dcolor = colors[ 1 + (depth-1) % #colors ]
     local prefix = string.rep("  ", depth)
     local keys = {}
+    local rmaxEntries = maxEntries
     for k, v in pairs(t) do keys[#keys+1] = k end
     table.sort(keys)
 
     for _, k in ipairs(keys) do
+        if maxEntries == 0 then break end
         local keystr = tostring(k)
         local value = t[k]
         local valuestr = tostring(value)
@@ -63,6 +65,7 @@ local function recursive_print_table(t, depth, max, exclude, parent, visited)
             if type(k) == "number" then
                 MsgC(dcolor, prefix .. "[" .. keystr .. "]: ")
                 MsgC(vcolor, valuestr .. "\n")
+                maxEntries = maxEntries - 1
             else
                 MsgC(dcolor, prefix .. keystr .. " = ")
                 MsgC(vcolor, valuestr .. "\n")
@@ -72,18 +75,23 @@ local function recursive_print_table(t, depth, max, exclude, parent, visited)
             if mt and mt.__tostring then
                 MsgC(dcolor, prefix .. keystr .. " = ")
                 MsgC(vcolor, valuestr .. "\n")
-            elseif depth < max then
+            else
                 if visited[value] then
                     MsgC(dcolor, prefix .. keystr .. ": [...]\n")
                 elseif not exclude[k] then
                     local head = keystr
-                    if type(k) == "number" then
-                        head = "->" .. parent .. "[" .. k .. "]"
-                    else
-                        MsgC(dcolor, prefix .. head .. ": \n")
-                    end
                     visited[value] = true
-                    recursive_print_table(value, depth+1, max, exclude, k, visited)
+                    if depth < maxDepth or maxDepth == -1 then
+                        if type(k) == "number" then
+                            head = "->" .. parent .. "[" .. k .. "]"
+                            maxEntries = maxEntries - 1
+                        else
+                            MsgC(dcolor, prefix .. head .. ": \n")
+                        end
+                        recursive_print_table(value, depth+1, maxDepth, rmaxEntries, exclude, k, visited)
+                    else
+                        MsgC(dcolor, prefix .. head .. ": (" .. #value .. ")\n")
+                    end
                 else
                     MsgC(dcolor, prefix .. keystr .. ": ...\n")
                 end
@@ -93,7 +101,7 @@ local function recursive_print_table(t, depth, max, exclude, parent, visited)
 
 end
 
-function print_table(t, name, exclude, maxDepth)
+function print_table(t, name, exclude, maxDepth, maxEntries)
 
     if exclude then
         if type(exclude) == "string" then
@@ -111,8 +119,57 @@ function print_table(t, name, exclude, maxDepth)
 
     local visited = {}
     print((name or "table") .. ": ")
-    recursive_print_table(t, 1, maxDepth or 100, exclude, (name or "table"), visited)
+    recursive_print_table(t, 1, maxDepth or -1, maxEntries or -1, exclude, (name or "table"), visited)
 
+end
+
+function ll_insert(first, elem)
+	elem.next = first
+	if first ~= nil then
+		first.prev = elem
+	end
+	elem.prev = nil
+	first = elem
+	return first
+end
+
+function ll_remove(first, elem)
+	local e, h = elem, elem.prev
+	if h ~= nil then
+		h.next = e.next
+	else
+		first = e.next
+	end
+	h = e.next
+	if h ~= nil then
+		h.prev = e.prev
+	end
+	e.next = nil
+	return first
+end
+
+local min = math.min
+function v_min(vec, test, pad)
+    pad = pad or 0
+    local x0,y0,z0 = vec:Unpack()
+    local x1,y1,z1 = test:Unpack()
+
+    x0 = min(x0, x1-pad)
+    y0 = min(y0, y1-pad)
+    z0 = min(z0, z1-pad)
+    vec:SetUnpacked(x0,y0,z0)
+end
+
+local max = math.max
+function v_max(vec, test, pad)
+    pad = pad or 0
+    local x0,y0,z0 = vec:Unpack()
+    local x1,y1,z1 = test:Unpack()
+
+    x0 = max(x0, x1+pad)
+    y0 = max(y0, y1+pad)
+    z0 = max(z0, z1+pad)
+    vec:SetUnpacked(x0,y0,z0)
 end
 
 return __lib

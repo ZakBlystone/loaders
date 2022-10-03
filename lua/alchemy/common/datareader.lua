@@ -48,6 +48,7 @@ local m_vis = {}
 
 function get_ptr() return m_ptr end
 function get_data() return m_data end
+function get_data_size() return m_size end
 function get_coverage_vis() return m_vis end
 
 function coverage_data( start, stop )

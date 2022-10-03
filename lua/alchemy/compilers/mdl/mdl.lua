@@ -38,6 +38,7 @@ local __lib = alchemy.MakeLib({
         include("alchemy/common/datawriter.lua"),
         include("vtx.lua"),
         include("vvd.lua"),
+        alchemy.Compiler("phy"),
     },
 })
 

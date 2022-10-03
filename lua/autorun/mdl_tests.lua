@@ -40,6 +40,15 @@ if CLIENT then
     end
 
     local studiomdl = alchemy.Compiler("mdl")
+    local phy = alchemy.Compiler("phy")
+
+    local compact_ledge = phy.BuildLedgeFromPoints({
+        Vector(-10,-10,0),
+        Vector(10,-10,0),
+        Vector(10,10,0),
+        Vector(-10,10,0),
+        Vector(0,0,20),
+    })
 
     local studio = studiomdl.New()
     local model = studio:BodyPart():Model()
@@ -63,6 +72,7 @@ if CLIENT then
             ["models/generated.sw.vtx"] = gma.GMA_DiskFile( "studio/vtx.dat" ),
             ["models/generated.mdl"] = gma.GMA_DiskFile( "studio/mdl.dat" ),
             ["models/generated.vvd"] = gma.GMA_DiskFile( "studio/vvd.dat" ),
+            ["models/generated.phy"] = gma.GMA_DiskFile( "studio/phy.dat" ),
         })
 
         gma.GMA_Mount("modeltest")
@@ -100,7 +110,7 @@ if CLIENT then
     --mdl_test = "models/dog.mdl"
     --mdl_test = "models/Zombie/Classic_legs.mdl"
     --mdl_test = "models/raptor/aeon_enhanced/aeon.mdl"
-    --mdl_test = "models/n7legion/fortnite/hybrid_player_alt.mdl"
+    --mdl_test = "models/n7legion/fortnite/hybrid_player.mdl"
     --mdl_test = "models/player/LeymiRBA/GrifGrif.mdl" --[this one breaks...]
     --mdl_test = "models/Gibs/Fast_Zombie_Torso.mdl"
     --mdl_test = "models/Combine_Strider.mdl"
@@ -134,8 +144,10 @@ if CLIENT then
 
         --PrintTable(loaded.rawheader)
         --MsgC(Color(255,255,255), string.rep("=", 80) .. "\n")
-        utils.print_table(loaded, "model", {"vertices", "indices", "rawheader", "local_sequences", "local_anims"}, 2)
+        --utils.print_table(loaded, "model", {"vertices", "indices", "rawheader", "local_sequences", "local_anims"}, 2)
 
+        --utils.print_table(loaded.bodyparts[2], "parts", {"boneStateChanges"}, 100, 8)
+        --utils.print_table(loaded.bodyparts[1].models[1].meshes[1].flexes, "model", {}, -1, 5)
         --if loaded.hdr2 then PrintTable(loaded.hdr2) end
 
         --PrintTable(loaded.bones)
@@ -145,19 +157,27 @@ if CLIENT then
         --print("SEQUENCES")
         --PrintTable(loaded.local_sequences)
         --print(loaded.name)
+        --utils.print_table(loaded.phy, "physics", {}, -1, 5)
     end
 
     --PrintTable(loaded.vvd.vertices)
     --PrintTable(loaded.vtx.materialReplacementList)
+
+    --utils.print_table(loaded.phy)
     
     hook.Add("PostDrawOpaqueRenderables", "test_mdl", function()
     
         --if true then return end
         if loaded then
             loaded:Render()
+            if loaded.phy then
+                mdl.DrawVCollide( loaded.phy )
+            else
+                print("no phy")
+            end
         end
         --local parts = loaded:GetBodyParts()
-        --loaded:RenderBodyPart(parts[1])
+        --loaded:RenderModel( parts[1].models[1] )
     
     end)
     

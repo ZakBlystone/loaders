@@ -33,7 +33,11 @@ SOFTWARE.
 ]]
 
 AddCSLuaFile()
-local __lib = alchemy.MakeLib()
+local __lib = alchemy.MakeLib({
+    using = {
+        include("../../common/datareader.lua")
+    }
+})
 
 COLLIDE_POLY = 0
 COLLIDE_MOPP = 1
@@ -50,98 +54,6 @@ local str_sub = string.sub
 local str_find = string.find
 local str_char = string.char
 local lshift, rshift, band, bor, bnot = bit.lshift, bit.rshift, bit.band, bit.bor, bit.bnot
-local m_ptr = 1
-local m_data = nil
-
-local function begin_data( data )
-    m_data, m_ptr = data, 1
-end
-
-local function end_data()
-    m_data = nil
-end
-
-local function seek_data( pos )
-    m_ptr = pos + 1
-end
-
-local function tell_data()
-    return m_ptr - 1
-end
-
-local function float32()
-    local a,b,c,d = str_byte(m_data, m_ptr, m_ptr + 4)
-    m_ptr = m_ptr + 4
-    local fr = bor( lshift( band(c, 0x7F), 16), lshift(b, 8), a )
-    local exp = bor( band( d, 0x7F ) * 2, rshift( c, 7 ) )
-    if exp == 0 then return 0 end
-
-    local s = d > 127 and -1 or 1
-    local n = math.ldexp( ( math.ldexp(fr, -23) + 1 ) * s, exp - 127 )
-    return n
-end
-
-local function uint32()
-    local a,b,c,d = str_byte(m_data, m_ptr, m_ptr + 4)
-    m_ptr = m_ptr + 4
-    local n = bor( lshift(d,24), lshift(c,16), lshift(b, 8), a )
-    if n < 0 then n = (0x1p32) - 1 - bnot(n) end
-    return n
-end
-
-local function uint16()
-    local a,b = str_byte(m_data, m_ptr, m_ptr + 2)
-    m_ptr = m_ptr + 2
-    return bor( lshift(b, 8), a )
-end
-
-local function uint8()
-    local a = str_byte(m_data, m_ptr, m_ptr)
-    m_ptr = m_ptr + 1
-    return a
-end
-
-local function int32()
-    local a,b,c,d = str_byte(m_data, m_ptr, m_ptr + 4)
-    m_ptr = m_ptr + 4
-    local n = bor( lshift(d,24), lshift(c,16), lshift(b, 8), a )
-    return n
-end
-
-local function int16()
-    local a,b = str_byte(m_data, m_ptr, m_ptr + 2)
-    m_ptr = m_ptr + 2
-    local n = bor( lshift(b, 8), a )
-    if band( b, 0x80 ) ~= 0 then n = -(0x1p16) + n end
-    return n
-end
-
-local function int8()
-    local a = str_byte(m_data, m_ptr, m_ptr)
-    m_ptr = m_ptr + 1
-    if band( a, 0x80 ) ~= 0 then a = -(0x100) + a end
-    return a
-end
-
-local function char()
-    local a = str_sub(m_data, m_ptr, m_ptr)
-    m_ptr = m_ptr + 1
-    return a
-end
-
-local function array_of( f, count )
-
-    local t = {}
-    for i=1, count do
-        t[#t+1] = f()
-    end
-    return t
-
-end
-
-local function vector32()
-    return Vector( float32(), float32(), float32() )
-end
 
 local CompactLedgeSize = 16
 local function CompactLedge()
@@ -276,6 +188,10 @@ local function LoadPhysCollideCompactSurface( header, index )
     local size = header.surfaceSize
     local surf = CompactSurface()
 
+    for k,v in pairs(surf) do
+        out_surface[k] = v
+    end
+
     local num_ledges = 0
     local num_tris = 0
     local num_nodes = 0
@@ -379,6 +295,9 @@ function LoadVCollideString( data, solidCount )
 
     end
 
+    local remain = get_data_size() - tell_data()
+    local key_data = charstr(remain)
+
     end_data()
 
     return solids
@@ -387,38 +306,32 @@ end
 
 function LoadVCollideFile( filename, path )
 
-    local handle = file.Open(filename, "rb", path or "GAME")
-    if handle ~= nil then
-        local size = handle:Size()
-        local data = handle:Read(size)
-        handle:Close()
+    open_data(filename, path)
+    local header = {
+        size = int32(),
+        id = int32(),
+        solidCount = int32(),
+        checkSum = int32(),
+    }
 
-        begin_data( data )
-        local header = {
-            size = int32(),
-            id = int32(),
-            solidCount = int32(),
-            checkSum = int32(),
-        }
+    local solids = {}
+    for i=1, header.solidCount do
 
-        local solids = {}
-        for i=1, header.solidCount do
-    
-            local size = int32()
-            local nextaddr = tell_data() + size
-            solids[#solids+1] = LoadPhysCollide( size, i )
-    
-            seek_data( nextaddr )
-    
-        end
+        local size = int32()
+        local nextaddr = tell_data() + size
+        solids[#solids+1] = LoadPhysCollide( size, i )
 
-        end_data()
+        seek_data( nextaddr )
 
-        return solids
-
-    else
-        error("Unable to find: " .. tostring(filename))
     end
+
+    local remain = get_data_size() - tell_data()
+    local key_data = charstr(remain)
+    print(key_data)
+
+    end_data()
+
+    return solids
 
 end
 

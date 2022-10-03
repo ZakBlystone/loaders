@@ -88,8 +88,6 @@ local function vtx_strip()
         boneStateChanges = indirect_array(vtx_bonestatechange),
     }
 
-    print("  LOAD STRIP AT: " .. base)
-
     assert(strip.flags <= 3, "Invalid flags on strip")
 
     load_indirect_array(strip, base, "boneStateChanges")
@@ -116,9 +114,6 @@ local function vtx_stripgroup()
         flags = uint8(),
     }
 
-    print(" LOAD GROUP AT: " .. base)
-    print_table(group, " GROUP")
-
     if band(group.flags, STRIPGROUP_IS_FLEXED) ~= 0 then group.isFlexed = true end
     if band(group.flags, STRIPGROUP_IS_HWSKINNED) ~= 0 then group.isHWSkinned = true end
     if band(group.flags, STRIPGROUP_IS_DELTA_FLEXED) ~= 0 then group.isDeltaFlexed = true end
@@ -133,10 +128,6 @@ local function vtx_stripgroup()
     local vertices = group.vertices
     local indices = group.indices
 
-    --PrintTable(group)
-    --PrintTable(indices)
-
-    --print("VERTS: " .. #vertices)
     for i=1, #indices do
         local idx = indices[i]
         local vidx = vertices[idx+1].origMeshVertID+1
@@ -161,8 +152,6 @@ local function vtx_mesh()
         stripgroups = indirect_array(vtx_stripgroup),
         flags = uint8(),
     }
-
-    print("LOAD MESH AT: " .. base)
 
     if band(mesh.flags, MESH_IS_TEETH) ~= 0 then mesh.isTeeth = true end
     if band(mesh.flags, MESH_IS_EYES) ~= 0 then mesh.isEyes = true end

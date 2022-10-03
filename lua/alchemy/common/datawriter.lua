@@ -52,6 +52,8 @@ local WriteDouble = File.WriteDouble
 local WriteFloat = File.WriteFloat
 local Write = File.Write
 
+function get_data_handle() return m_file end
+
 function open_data( filename, path )
 
     local f = file.Open(filename, "wb", path or "DATA")

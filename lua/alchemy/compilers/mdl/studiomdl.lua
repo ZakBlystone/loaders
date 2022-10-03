@@ -445,6 +445,7 @@ mdlkeyvalue
     self.bones_byname = {}
     self.hitboxsets_byname = {}
     self.materials = {}
+    self.physics_solids = {}
 
     self:Bone("rootbone")
     self:HitboxSet("default"):Hitbox("hb0")
@@ -569,11 +570,41 @@ function m_studio:ComputeMaterialList()
 
 end
 
+local function v_round(v)
+
+    local x,y,z = v:Unpack()
+    local factor = 100000
+    x = math.Round(x * factor) / factor
+    y = math.Round(y * factor) / factor
+    z = math.Round(z * factor) / factor
+    return Vector(x,y,z)
+
+end
+
+function m_studio:BuildPhysics()
+
+    self.physics_solids = {}
+
+    local points = {}
+    for _,v in ipairs(self.vertices) do
+        points[#points+1] = v_round( v.position )
+    end
+
+    PrintTable(points)
+
+    local ledge = BuildLedgeFromPoints(points)
+    local surf = BuildSurface( {ledge} )
+
+    self.physics_solids[#self.physics_solids+1] = surf
+
+end
+
 function m_studio:Write( filename )
 
     self:AssignMeshIDs()
     self:ComputeBounds()
     self:ComputeMaterialList()
+    self:BuildPhysics()
 
     if #self.localsequences == 0 then
         self.localsequences[#self.localsequences+1] = {
@@ -607,6 +638,11 @@ function m_studio:Write( filename )
 
     local b,e = xpcall(WriteStudioVTX, function( err )
         print("Error writing vtx: " .. tostring(err))
+        debug.Trace()
+    end, self)
+
+    local b,e = xpcall(WriteStudioPHY, function( err )
+        print("Error writing phy: " .. tostring(err))
         debug.Trace()
     end, self)
 
