@@ -1373,7 +1373,7 @@ local function LoadBundle( filename, path )
 
     local mdl = LoadMDL( mdl_filename, path )
     local vvd = LoadVVD( vvd_filename, path, 1, true )
-    local vtx = LoadVTX( vtx_filename, path )
+    local vtx = LoadVTX( vtx_filename, path, mdl.version )
     assert(mdl.checksum == vtx.checksum)
     assert(mdl.checksum == vvd.checksum)
 

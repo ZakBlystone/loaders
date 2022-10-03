@@ -29,6 +29,7 @@ AddCSLuaFile()
 local __lib = alchemy.MakeLib({
     using = {
         include("alchemy/common/datareader.lua"),
+        include("alchemy/common/utils.lua"),
     },
 })
 
@@ -47,6 +48,10 @@ STRIPGROUP_SUPPRESS_HW_MORPH = 0x08
 -- Mesh flags
 MESH_IS_TEETH = 0x01
 MESH_IS_EYES = 0x02
+
+VTX_VERSION = 7
+
+__mdl_version = 0
 
 function vtx_get_coverage_vis() return get_coverage_vis() end
 
@@ -83,6 +88,10 @@ local function vtx_strip()
         boneStateChanges = indirect_array(vtx_bonestatechange),
     }
 
+    print("  LOAD STRIP AT: " .. base)
+
+    assert(strip.flags <= 3, "Invalid flags on strip")
+
     load_indirect_array(strip, base, "boneStateChanges")
 
     if band(strip.flags, STRIP_IS_TRILIST) ~= 0 then
@@ -100,7 +109,6 @@ end
 local function vtx_stripgroup()
 
     local base = tell_data()
-    --print("BASE AT: " .. base)
     local group = {
         vertices = indirect_array(vtx_vertex),
         indices = indirect_array(uint16),
@@ -108,13 +116,15 @@ local function vtx_stripgroup()
         flags = uint8(),
     }
 
+    print(" LOAD GROUP AT: " .. base)
+    print_table(group, " GROUP")
+
     if band(group.flags, STRIPGROUP_IS_FLEXED) ~= 0 then group.isFlexed = true end
     if band(group.flags, STRIPGROUP_IS_HWSKINNED) ~= 0 then group.isHWSkinned = true end
     if band(group.flags, STRIPGROUP_IS_DELTA_FLEXED) ~= 0 then group.isDeltaFlexed = true end
     if band(group.flags, STRIPGROUP_SUPPRESS_HW_MORPH) ~= 0 then group.supressHWMorph = true end
-    group.flags = nil
 
-    --PrintTable(group)
+    group.flags = nil
 
     load_indirect_array(group, base, "vertices")
     load_indirect_array(group, base, "indices")
@@ -133,6 +143,11 @@ local function vtx_stripgroup()
         indices[i] = vidx
     end
 
+    if __mdl_version >= 49 then
+        uint32()
+        uint32()
+    end
+
     --group.vertices = nil
 
     return group
@@ -146,6 +161,8 @@ local function vtx_mesh()
         stripgroups = indirect_array(vtx_stripgroup),
         flags = uint8(),
     }
+
+    print("LOAD MESH AT: " .. base)
 
     if band(mesh.flags, MESH_IS_TEETH) ~= 0 then mesh.isTeeth = true end
     if band(mesh.flags, MESH_IS_EYES) ~= 0 then mesh.isEyes = true end
@@ -233,6 +250,9 @@ local function vtx_header()
         bodyParts = indirect_array( vtx_bodypart ),
     }
 
+    assert(header.version == VTX_VERSION, "Version mismatch: " .. (header.version) .. " != " .. VTX_VERSION)
+
+    print("VERSION: " .. header.version)
     print("MATERIAL REPLACEMENT LIST: " .. header.materialReplacementListOffset)
 
     push_data(base + header.materialReplacementListOffset)
@@ -245,8 +265,9 @@ local function vtx_header()
 
 end
 
-function LoadVTX( filename, path )
+function LoadVTX( filename, path, mdl_version )
 
+    __mdl_version = mdl_version
     open_data(filename, path)
     local header = vtx_header()
     end_data()

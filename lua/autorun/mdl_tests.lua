@@ -86,22 +86,22 @@ if CLIENT then
     
 
     local mdl_test = "models/Gibs/Fast_Zombie_Legs.mdl"
-    mdl_test = "models/Gibs/HGIBS.mdl"
-    mdl_test = "models/Lamarr.mdl"
+    --mdl_test = "models/Gibs/HGIBS.mdl"
+    --mdl_test = "models/Lamarr.mdl"
     --mdl_test = "models/vortigaunt.mdl"
     --mdl_test = "models/crow.mdl"
     --mdl_test = "models/Alyx.mdl"
-    mdl_test = "models/kazditi/protogen/protogen.mdl"
+    --mdl_test = "models/kazditi/protogen/protogen.mdl"
     --mdl_test = "models/gman_high.mdl"
     --mdl_test = "models/Combine_dropship.mdl"
-    mdl_test = "models/Combine_turrets/Floor_turret.mdl"
+    --mdl_test = "models/Combine_turrets/Floor_turret.mdl"
     --mdl_test = "models/combine_camera/combine_camera.mdl"
     --mdl_test = "models/AntLion.mdl"
     --mdl_test = "models/dog.mdl"
     --mdl_test = "models/Zombie/Classic_legs.mdl"
     --mdl_test = "models/raptor/aeon_enhanced/aeon.mdl"
     --mdl_test = "models/n7legion/fortnite/hybrid_player_alt.mdl"
-    --mdl_test = "models/player/LeymiRBA/GrifGrif.mdl" [this one breaks...]
+    --mdl_test = "models/player/LeymiRBA/GrifGrif.mdl" --[this one breaks...]
     --mdl_test = "models/Gibs/Fast_Zombie_Torso.mdl"
     --mdl_test = "models/Combine_Strider.mdl"
     --mdl_test = "models/props_junk/wood_crate001a.mdl"
@@ -111,10 +111,10 @@ if CLIENT then
     --mdl_test = "models/magnusson_device.mdl"
     --mdl_test = "models/antlion_worker.mdl"
 
-    mdl_test = "models/props_lab/binderblue.mdl"
-    mdl_test = "models/maxofs2d/companion_doll.mdl"
-    mdl_test = "models/props_phx/construct/metal_plate1.mdl"
-    --mdl_test = "studio/mdl.dat"
+    --mdl_test = "models/props_lab/binderblue.mdl"
+    --mdl_test = "models/maxofs2d/companion_doll.mdl"
+    --mdl_test = "models/props_phx/construct/metal_plate1.mdl"
+    mdl_test = "studio/mdl.dat"
 
     print("LOADING: " .. tostring(mdl_test))
     local loaded = Prof( "LoadModel", mdl.LoadModel, mdl_test )
@@ -133,8 +133,8 @@ if CLIENT then
         --PrintTable(loaded.bodyparts)
 
         --PrintTable(loaded.rawheader)
-        MsgC(Color(255,255,255), string.rep("=", 80) .. "\n")
-        utils.print_table(loaded, "model", {"vertices", "indices", "rawheader"})
+        --MsgC(Color(255,255,255), string.rep("=", 80) .. "\n")
+        utils.print_table(loaded, "model", {"vertices", "indices", "rawheader", "local_sequences", "local_anims"}, 2)
 
         --if loaded.hdr2 then PrintTable(loaded.hdr2) end
 
@@ -152,7 +152,7 @@ if CLIENT then
     
     hook.Add("PostDrawOpaqueRenderables", "test_mdl", function()
     
-        if true then return end
+        --if true then return end
         if loaded then
             loaded:Render()
         end
