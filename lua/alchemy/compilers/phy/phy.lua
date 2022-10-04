@@ -80,7 +80,7 @@ function BuildLedgeFromPoints( points )
         cpoints[i] = Pos2PHY(p)
     end
 
-    local qh = quickHull.new(cpoints) qh:build()
+    local qh = quickHull.new(points) qh:build()
     local tris = qh:collectFaces( false )
     local verts = qh.vertices
     local newpoints = {}
@@ -93,23 +93,16 @@ function BuildLedgeFromPoints( points )
         local face = qh.faces[i]
         local indices = face:collectIndices()
         for j=#indices, 1, -1 do
-            local p = verts[ indices[j] ].point
+            local p = Pos2PHY(verts[ indices[j] ].point)
             addToPoints( p, point_hash, newpoints )
             ppoints[#ppoints+1] = p
         end
-        ps_planes[#ps_planes+1] = ivp.PS_Plane( face.normal * -1, ppoints )
+
+        local ps_plane = ivp.PS_Plane( Dir2PHY(face.normal * -1), ppoints )
+        ps_plane:Validate()
+        ps_planes[#ps_planes+1] = ps_plane
 
     end
-
-    --utils.print_table(newpoints, "new points")
-
-    local template = ivp.PlanesToTemplate( newpoints, ps_planes )
-
-    --utils.print_table(template, "template")
-
-    local surface_builder = ivp.SurfaceBuilder_Polygon_Convex( template )
-    local ledge = surface_builder:GetCompactLedge()
-    if ledge then return ledge end
 
     local c = ColorRand()
     for _, plane in ipairs(ps_planes) do
@@ -121,11 +114,19 @@ function BuildLedgeFromPoints( points )
             local v0 = plane.points[(i%n)+1]
             local v1 = plane.points[((i+1)%n)+1]
             debugoverlay.Line(
-                Pos2HL(v0) - normal * 10, 
-                Pos2HL(v1) - normal * 10, 30, c, true )
+                Pos2HL(v0) - normal * 2, 
+                Pos2HL(v1) - normal * 2, 30, c, true )
 
         end
     end
+
+    --utils.print_table(newpoints, "new points")
+
+    local template = ivp.PlanesToTemplate( newpoints, ps_planes )
+
+    local surface_builder = ivp.SurfaceBuilder_Polygon_Convex( template )
+    local ledge = surface_builder:GetCompactLedge()
+    if ledge then return ledge end
 
 end
 
@@ -147,17 +148,30 @@ function WriteStudioPHY( v )
 
     local final_keys = keytable.new_keytable()
 
-    local solids = v.physics_solids
+    local physbones = v.physbones
+    local totalmass = 0
 
     open_data("studio/phy.dat")
     uint32(16) -- size of header
     uint32(0) -- 'id'
-    uint32(#solids) -- solid count
+    uint32(#physbones) -- solid count
     uint32(v:GetChecksum())
 
-    for _, surf in ipairs(solids) do
+    for k, physbone in ipairs(physbones) do
 
-        local compiled = surf.ledgesoup:Compile()
+        local sdata = final_keys:AddSection("solid")
+        sdata.index = k - 1
+        sdata.name = physbone:GetName()
+        sdata.mass = physbone:GetMass()
+        sdata.surfaceprop = physbone:GetSurfaceProp()
+        sdata.damping = physbone:GetDamping()
+        sdata.rotdamping = physbone:GetRotationDamping()
+        sdata.inertia = physbone:GetInertia()
+        sdata.volume = physbone:GetVolume()
+
+        totalmass = totalmass + physbone:GetMass()
+
+        local compiled = physbone.physics.ledgesoup:Compile()
         local base = tell_data()
         local size = uint32(0)
         charstr("VPHY", 4)
@@ -175,25 +189,12 @@ function WriteStudioPHY( v )
 
     end
 
-    local keys = [[
-solid {
-"index" "0"
-"name" "physmodel"
-"mass" "50"
-"surfaceprop" "flesh"
-"damping" "0"
-"rotdamping" "0"
-"intertia" "1"
-"volume" "21000"
-}
-editparams {
-"rootname" ""
-"totalmass" "50"
-"concave" "0"
-}]]
+    local eparams = final_keys:AddSection("editparams")
+    eparams.rootname = ""
+    eparams.totalmass = totalmass
+    eparams.concave = ""
 
-    --final_keys:Write()
-    nullstr(keys)
+    nullstr(final_keys:ToString())
     end_data()
 
 end

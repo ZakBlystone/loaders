@@ -354,6 +354,7 @@ function m_bone:Init( name )
     self.bindmatrix = Matrix()
     self.flags = BONE_USED_BY_VERTEX_LOD0
     self.physboneid = 0
+    self.physprop = "metal"
     return self
 
 end
@@ -362,14 +363,14 @@ function m_bone:GetPos() return self.matrix:GetTranslation() end
 function m_bone:GetAnglesQuat()
 
     -- todo: implement
-    return quat()
+    return quat(0,0,0,1)
 
 end
 
 function m_bone:GetQuatAlignment()
 
     -- todo: implement
-    return quat()
+    return quat(0,0,0,1)
 
 end
 
@@ -377,40 +378,115 @@ function m_bone:GetAngles() return self.matrix:GetAngles() end
 function m_bone:GetBindMatrix() return self.bindmatrix end
 function m_bone:GetFlags() return self.flags end
 function m_bone:GetContents() return CONTENTS_SOLID end
-function m_bone:GetSurfaceProp() return "flesh" end
+function m_bone:GetSurfaceProp()
+ 
+    local phys = self.studio.physbones[self.physboneid+1]
+    if phys then return phys.surfaceprop end
+    return "bloodyflesh"
+
+end
 function m_bone:GetName() return self.name end
 function m_bone:GetPhysBoneID() return self.physboneid end
+
+function m_bone:SetSurfaceProp( prop ) self.physprop = prop end
+function m_bone:SetPhysBone( physbone )
+
+    self.physboneid = physbone.id
+    return self
+
+end
 
 -- PHYSBONE
 function m_physbone:Init( name )
 
     self.name = name
+    self.mass = 10
+    self.surfaceprop = "metal"
+    self.damping = 0
+    self.rotdamping = 0
+    self.inertia = 1
+    self.volume = 1000
     return self
 
 end
 
-function m_physbone:GetMass() return 50 end
-function m_physbone:GetSurfaceProp() return "flesh" end
-function m_physbone:GetDamping() return 0 end
-function m_physbone:GetRotationDamping() return 0 end
-function m_physbone:GetIntertia() return 1 end
-function m_physbone:GetVolume() return 1000 end -- compute
+function m_physbone:SetMass( mass ) self.mass = mass end
+function m_physbone:SetSurfaceProp( prop ) self.surfaceprop = prop end
+function m_physbone:SetDamping( linear, angular ) self.damping, self.rotdamping = (linear or 0), (angular or 0) end
+function m_physbone:SetInertia( inertia ) self.inertia = inertia end
 
+function m_physbone:GetName() return self.name end
+function m_physbone:GetMass() return self.mass end
+function m_physbone:GetSurfaceProp() return self.surfaceprop end
+function m_physbone:GetDamping() return self.damping end
+function m_physbone:GetRotationDamping() return self.rotdamping end
+function m_physbone:GetInertia() return self.inertia end
+function m_physbone:GetVolume() return self.volume end -- compute
+
+local function v_round(v)
+
+    local x,y,z = v:Unpack()
+    local factor = 100000
+    x = math.Round(x * factor) / factor
+    y = math.Round(y * factor) / factor
+    z = math.Round(z * factor) / factor
+    return Vector(x,y,z)
+
+end
+
+function m_physbone:BuildFromPoints( points )
+
+    local cpoint = {}
+    for _,v in ipairs(points) do
+        cpoint[#cpoint+1] = v_round( v )
+    end
+
+    local ledge = BuildLedgeFromPoints(points)
+    local surf = BuildSurface( {ledge} )
+
+    self.physics = surf
+    return self
+
+end
+
+function m_physbone:BuildFromEntireModel()
+
+    local points = {}
+    for _,v in ipairs(self.studio.vertices) do
+        points[#points+1] = v_round( v.position )
+    end
+
+    local ledge = BuildLedgeFromPoints(points)
+    local surf = BuildSurface( {ledge} )
+
+    self.physics = surf
+    return self
+
+end
 
 -- PHYS CONSTRAINT
 function m_physconstraint:Init()
 
+    return self
+
 end
 
 -- HITBOX
-function m_hitbox:Init( name )
+function m_hitbox:Init( name, mins, maxs )
 
     self.name = name
     self.bone = 0
-    self.bbmins = Vector(-30,-30,-30)
-    self.bbmaxs = Vector(30,30,30)
+    self.bbmins = mins or Vector(-8,-8,-8)
+    self.bbmaxs = maxs or Vector(8,8,8)
 
     return self
+
+end
+
+function m_hitbox:SetBounds( mins, maxs )
+
+    self.bbmins:Set( mins )
+    self.bbmaxs:Set( maxs )
 
 end
 
@@ -427,7 +503,7 @@ function m_hitboxset:Hitbox( name )
 
     local box = m_hitbox.New( name )
     self.hitboxes[#self.hitboxes+1] = box
-    return self
+    return box
 
 end
 
@@ -458,20 +534,19 @@ function m_studio:Init()
     self.bbmaxs = Vector()
     self.vertices = {}
     self.tangents = {}
-    self.keyvalues = new_keytable() 
+    self.keyvalues = new_keytable()
+    self.surfaceprop = "metal"
     
     local mdl = self.keyvalues:AddSection("mdlkeyvalue")
     local prop_data = mdl:AddSection("prop_data")
-    prop_data["base"] = "Flesh.Small"
+    prop_data["base"] = "Flesh.Tiny"
 
     self.bones_byname = {}
     self.hitboxsets_byname = {}
     self.materials = {}
-    self.physics_solids = {}
     self.physbones = {}
 
     self:Bone("rootbone")
-    self:HitboxSet("default"):Hitbox("hb0")
 
     return self
 
@@ -490,7 +565,21 @@ function m_studio:GetFlags() return 0 end
 function m_studio:GetMass() return 0 end
 function m_studio:GetContents() return CONTENTS_SOLID end
 function m_studio:GetKeyValuesString() return self.keyvalues:ToString() end
-function m_studio:GetSurfaceProp() return "flesh" end
+function m_studio:GetSurfaceProp() 
+    
+    local test = nil
+    for _, v in ipairs(self.physbones) do
+        local prop = v:GetSurfaceProp()
+        if test == nil then
+            test = prop
+        elseif test ~= prop then
+            test = nil
+            break
+        end
+    end
+
+    return test or self.surfaceprop
+end
 
 function m_studio:Bone( name )
 
@@ -570,6 +659,14 @@ function m_studio:ComputeBounds()
 
 end
 
+function m_studio:EnsureHitBoxes()
+
+    if #self.hitboxsets > 0 then return end
+    local box = self:HitboxSet("default"):Hitbox("hb0")
+    box:SetBounds( self.bbmins, self.bbmaxs )
+
+end
+
 function m_studio:ComputeMaterialList()
 
     local cd_hash = {}
@@ -605,39 +702,12 @@ function m_studio:ComputeMaterialList()
 
 end
 
-local function v_round(v)
-
-    local x,y,z = v:Unpack()
-    local factor = 100000
-    x = math.Round(x * factor) / factor
-    y = math.Round(y * factor) / factor
-    z = math.Round(z * factor) / factor
-    return Vector(x,y,z)
-
-end
-
-function m_studio:BuildPhysics()
-
-    self.physics_solids = {}
-
-    local points = {}
-    for _,v in ipairs(self.vertices) do
-        points[#points+1] = v_round( v.position )
-    end
-
-    local ledge = BuildLedgeFromPoints(points)
-    local surf = BuildSurface( {ledge} )
-
-    self.physics_solids[#self.physics_solids+1] = surf
-
-end
-
 function m_studio:Write( filename )
 
     self:AssignMeshIDs()
     self:ComputeBounds()
+    self:EnsureHitBoxes()
     self:ComputeMaterialList()
-    self:BuildPhysics()
 
     if #self.localsequences == 0 then
         self.localsequences[#self.localsequences+1] = {
@@ -678,6 +748,7 @@ function m_studio:Write( filename )
         print("Error writing phy: " .. tostring(err))
         debug.Trace()
     end, self)
+
 
 end
 

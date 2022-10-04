@@ -40,29 +40,24 @@ if CLIENT then
     end
 
     local studiomdl = alchemy.Compiler("mdl")
-    local phy = alchemy.Compiler("phy")
-
-    local compact_ledge = phy.BuildLedgeFromPoints({
-        Vector(-10,-10,0),
-        Vector(10,-10,0),
-        Vector(10,10,0),
-        Vector(-10,10,0),
-        Vector(0,0,20),
-    })
 
     local studio = studiomdl.New()
     local model = studio:BodyPart():Model()
     local msh = model:Mesh( "models/flesh" )
     local stripgroup = msh:StripGroup()
     local strip0 = stripgroup:Strip()
-    make_cube(strip0, 30, Vector(0,0,0))
+    make_cube(strip0, 5, Vector(0,0,0))
+    make_cube(strip0, 3, Vector(0,0,20))
 
+    local phys = studio:PhysBone()
+    phys:SetSurfaceProp("bloodyflesh")
+    phys:BuildFromEntireModel()
     studio:Write()
 
     --local strip1 = stripgroup:Strip()
     --make_cube(strip1, 30, Vector(200,0,50))
 
-    if false then
+    if true then
 
         local gma = alchemy.Compiler("gma")
         gma.GMA_Write("modeltest",

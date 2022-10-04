@@ -53,6 +53,8 @@ function meta:CalcHesse(p0, p1, p2)
     self.normal = c
     self.hesse_val = -c:Dot(p0)
 
+    assert( self.normal:Length() ~= 0, "zero-length hesse" )
+
 end
 
 function meta:Dot(other)
@@ -174,11 +176,21 @@ function meta:MakeTriangles()
         td_sur:CalcLineRepresentation()
         td_sur:CalcTriangleRepresentation()
 
+        local n = 0
         local td_tri = td_sur.first_triangle
         while td_tri ~= nil do
+
+            assert(td_tri.point_nums[1] ~= td_tri.point_nums[2], "1 and 2 on P_Sur_2D[" .. n .. "] index the same point!")
+            assert(td_tri.point_nums[1] ~= td_tri.point_nums[3], "1 and 3 on P_Sur_2D[" .. n .. "] index the same point!")
+            assert(td_tri.point_nums[2] ~= td_tri.point_nums[3], "2 and 3 on P_Sur_2D[" .. n .. "] index the same point!")
+
             local p0 = self.points[ td_tri.point_nums[3] ]
             local p1 = self.points[ td_tri.point_nums[2] ]
             local p2 = self.points[ td_tri.point_nums[1] ]
+
+            assert(p0 ~= p1, "p0 and p1 on Object_Polygon_Tetra are the same point!")
+            assert(p0 ~= p2, "p0 and p2 on Object_Polygon_Tetra are the same point!")
+            assert(p1 ~= p2, "p1 and p2 on Object_Polygon_Tetra are the same point!")
 
             -- swap for clockwise
             local v0 = p1.v - p0.v
@@ -217,6 +229,7 @@ function meta:MakeTriangles()
 
 
             td_tri = td_tri.next
+            n = n + 1
         end
 
     end
@@ -328,6 +341,14 @@ function meta:CalcHesse()
     local p0 = self.edges[1].start_point.v
     local p1 = self.edges[1].next.start_point.v
     local p2 = self.edges[1].prev.start_point.v
+
+    assert(p0 ~= p1, "tried to calculate hesse but p0 and p1 are the same")
+    assert(p0 ~= p2, "tried to calculate hesse but p0 and p2 are the same")
+    assert(p1 ~= p2, "tried to calculate hesse but p1 and p2 are the same")
+
+    print(p0)
+    print(p1)
+    print(p2)
 
     self.hesse:CalcHesse(p0, p2, p1)
     self.hesse:Normalize()

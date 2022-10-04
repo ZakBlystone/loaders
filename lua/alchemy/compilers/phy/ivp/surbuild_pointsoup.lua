@@ -40,6 +40,16 @@ function meta:Init( normal, points )
     return self
 end
 
+function meta:Validate()
+
+    local hash = PointHash()
+    for _, p in ipairs(self.points) do
+        assert(hash:FindPoint(p) == nil, "Duplicate point in PS_Plane: " .. tostring(p))
+        hash:AddPoint(p)
+    end
+
+end
+
 function PS_Plane( normal, points )
 
     return setmetatable({}, meta):Init( normal, points )

@@ -431,7 +431,7 @@ local function WriteAnimBlock(v)
     local bone = uint8(0)
     local flags = uint8(STUDIO_ANIM_RAWROT)
     local nextoffset = uint16(0)
-    quat48( quat(0.5,0.5,0.5,0.5) )
+    quat48( quat(0,0,0,1) )
 
 end
 

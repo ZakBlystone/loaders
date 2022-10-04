@@ -405,6 +405,7 @@ function meta:CalcTriangleRepresentation()
 			td_point_line = td_point_line.next
 		end
 		table.sort(td_lines, function(a,b) return a[2] < b[2] end)
+		
 
 		while #td_lines > 0 do
 			td_point_line = td_lines[1][1]
@@ -424,6 +425,13 @@ function meta:CalcTriangleRepresentation()
 				continue
 			end
 			--print("Side OK")
+
+			assert(point_a ~= point_b, "CalcTriangleRepresentation: point_a and point_b are the same point")
+			assert(point_a ~= point_c, "CalcTriangleRepresentation: point_a and point_c are the same point")
+			assert(point_b ~= point_c, "CalcTriangleRepresentation: point_b and point_c are the same point")
+			assert(point_a.point_num ~= point_b.point_num, "CalcTriangleRepresentation: point_a and point_b INDEX the same point")
+			assert(point_a.point_num ~= point_c.point_num, "CalcTriangleRepresentation: point_a and point_c INDEX the same point")
+			assert(point_b.point_num ~= point_c.point_num, "CalcTriangleRepresentation: point_b and point_c INDEX the same point")
 
 			local skip_this_point = false
 
