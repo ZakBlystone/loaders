@@ -35,7 +35,8 @@ SOFTWARE.
 AddCSLuaFile()
 local __lib = alchemy.MakeLib({
     using = {
-        include("alchemy/common/datareader.lua"),
+        include("../../common/datareader.lua"),
+        include("../../common/keytable.lua"),
         include("vtx.lua"),
         include("vvd.lua"),
         include("../phy/phy3.lua"),
@@ -1081,6 +1082,8 @@ local function mdl_header()
     indirect_name(header, base, "surfacepropidx")
     indirect_name(header, base, "animblocknameidx")
     indirect_name(header, base, "keyvaluesidx", "keyvaluessize")
+
+    header.keyvalues = new_keytable():FromString(header.keyvalues):ToTable()
 
     header.rawheader = table.Copy(header)
 

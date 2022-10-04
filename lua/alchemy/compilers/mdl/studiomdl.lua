@@ -29,6 +29,7 @@ AddCSLuaFile()
 local __lib = alchemy.MakeLib({
     using = {
         include("mdl.lua"),
+        include("../../common/keytable.lua")
     },
 })
 
@@ -67,6 +68,8 @@ local m_mesh = createMeta()
 local m_stripgroup = createMeta()
 local m_strip = createMeta()
 local m_bone = createMeta()
+local m_physbone = createMeta()
+local m_physconstraint = createMeta()
 local m_hitboxset = createMeta()
 local m_hitbox = createMeta()
 local m_studio = createMeta()
@@ -350,6 +353,7 @@ function m_bone:Init( name )
     self.matrix = Matrix()
     self.bindmatrix = Matrix()
     self.flags = BONE_USED_BY_VERTEX_LOD0
+    self.physboneid = 0
     return self
 
 end
@@ -373,8 +377,30 @@ function m_bone:GetAngles() return self.matrix:GetAngles() end
 function m_bone:GetBindMatrix() return self.bindmatrix end
 function m_bone:GetFlags() return self.flags end
 function m_bone:GetContents() return CONTENTS_SOLID end
-function m_bone:GetSurfaceProp() return "solidmetal" end
+function m_bone:GetSurfaceProp() return "flesh" end
 function m_bone:GetName() return self.name end
+function m_bone:GetPhysBoneID() return self.physboneid end
+
+-- PHYSBONE
+function m_physbone:Init( name )
+
+    self.name = name
+    return self
+
+end
+
+function m_physbone:GetMass() return 50 end
+function m_physbone:GetSurfaceProp() return "flesh" end
+function m_physbone:GetDamping() return 0 end
+function m_physbone:GetRotationDamping() return 0 end
+function m_physbone:GetIntertia() return 1 end
+function m_physbone:GetVolume() return 1000 end -- compute
+
+
+-- PHYS CONSTRAINT
+function m_physconstraint:Init()
+
+end
 
 -- HITBOX
 function m_hitbox:Init( name )
@@ -432,20 +458,17 @@ function m_studio:Init()
     self.bbmaxs = Vector()
     self.vertices = {}
     self.tangents = {}
-    self.keyvalues = [[
-mdlkeyvalue
-{
- prop_data 
- {
-  "base" "Metal.Large"
- }
-}
-    ]]
+    self.keyvalues = new_keytable() 
+    
+    local mdl = self.keyvalues:AddSection("mdlkeyvalue")
+    local prop_data = mdl:AddSection("prop_data")
+    prop_data["base"] = "Flesh.Small"
 
     self.bones_byname = {}
     self.hitboxsets_byname = {}
     self.materials = {}
     self.physics_solids = {}
+    self.physbones = {}
 
     self:Bone("rootbone")
     self:HitboxSet("default"):Hitbox("hb0")
@@ -466,7 +489,8 @@ function m_studio:GetViewBBMax() return Vector(0,0,0) end
 function m_studio:GetFlags() return 0 end
 function m_studio:GetMass() return 0 end
 function m_studio:GetContents() return CONTENTS_SOLID end
-function m_studio:GetKeyValuesString() return self.keyvalues end
+function m_studio:GetKeyValuesString() return self.keyvalues:ToString() end
+function m_studio:GetSurfaceProp() return "flesh" end
 
 function m_studio:Bone( name )
 
@@ -478,6 +502,17 @@ function m_studio:Bone( name )
     self.bones[#self.bones+1] = bone
     self.bones_byname[name] = bone
     return bone
+
+end
+
+function m_studio:PhysBone( name )
+
+    if name == nil then name = "physbone_" .. #self.physbones end
+    local phys = m_physbone.New( name )
+    phys.studio = self
+    phys.id = #self.physbones
+    self.physbones[#self.physbones+1] = phys
+    return phys
 
 end
 
@@ -589,8 +624,6 @@ function m_studio:BuildPhysics()
     for _,v in ipairs(self.vertices) do
         points[#points+1] = v_round( v.position )
     end
-
-    PrintTable(points)
 
     local ledge = BuildLedgeFromPoints(points)
     local surf = BuildSurface( {ledge} )

@@ -77,10 +77,10 @@ if CLIENT then
 
         gma.GMA_Mount("modeltest")
 
-        G_TEST_MODEL = nil
+        --[[G_TEST_MODEL = nil
         G_TEST_MODEL = G_TEST_MODEL or ents.CreateClientProp("models/generated.mdl")
         G_TEST_MODEL:SetPos(Vector(0,0,100))
-        G_TEST_MODEL:Spawn()
+        G_TEST_MODEL:Spawn()]]
         --G_TEST_MODEL:Remove()
 
     end
@@ -110,7 +110,7 @@ if CLIENT then
     --mdl_test = "models/dog.mdl"
     --mdl_test = "models/Zombie/Classic_legs.mdl"
     --mdl_test = "models/raptor/aeon_enhanced/aeon.mdl"
-    --mdl_test = "models/n7legion/fortnite/hybrid_player.mdl"
+    mdl_test = "models/n7legion/fortnite/hybrid_player.mdl"
     --mdl_test = "models/player/LeymiRBA/GrifGrif.mdl" --[this one breaks...]
     --mdl_test = "models/Gibs/Fast_Zombie_Torso.mdl"
     --mdl_test = "models/Combine_Strider.mdl"
@@ -123,7 +123,7 @@ if CLIENT then
 
     --mdl_test = "models/props_lab/binderblue.mdl"
     --mdl_test = "models/maxofs2d/companion_doll.mdl"
-    mdl_test = "models/props_phx/construct/metal_plate1.mdl"
+    --mdl_test = "models/props_phx/construct/metal_plate1.mdl"
     mdl_test = "studio/mdl.dat"
 
     print("LOADING: " .. tostring(mdl_test))
@@ -150,6 +150,7 @@ if CLIENT then
         --utils.print_table(loaded.bodyparts[1].models[1].meshes[1].flexes, "model", {}, -1, 5)
         --if loaded.hdr2 then PrintTable(loaded.hdr2) end
 
+        --utils.print_table(loaded.bones)
         --PrintTable(loaded.bones)
         --PrintTable(loaded.hitbox_sets)
         --print("ANIMS")
@@ -157,17 +158,17 @@ if CLIENT then
         --print("SEQUENCES")
         --PrintTable(loaded.local_sequences)
         --print(loaded.name)
-        --utils.print_table(loaded.phy, "physics", {}, -1, 5)
+        utils.print_table(loaded, "", {"vertices", "indices"}, -1, 20)
     end
 
     --PrintTable(loaded.vvd.vertices)
     --PrintTable(loaded.vtx.materialReplacementList)
 
-    utils.print_table(loaded.phy)
+    --utils.print_table(loaded.phy)
     
     hook.Add("PostDrawOpaqueRenderables", "test_mdl", function()
     
-        --if true then return end
+        if true then return end
         if loaded then
             loaded:Render()
             if loaded.phy then

@@ -83,8 +83,9 @@ local function recursive_print_table(t, depth, maxDepth, maxEntries, exclude, pa
                     visited[value] = true
                     if depth < maxDepth or maxDepth == -1 then
                         if type(k) == "number" then
-                            head = "->" .. parent .. "[" .. k .. "]"
+                            head = "->" .. parent .. "[" .. k .. "]:"
                             maxEntries = maxEntries - 1
+                            MsgC(vcolor, prefix .. head .. "\n")
                         else
                             MsgC(dcolor, prefix .. head .. ": \n")
                         end
@@ -170,6 +171,18 @@ function v_max(vec, test, pad)
     y0 = max(y0, y1+pad)
     z0 = max(z0, z1+pad)
     vec:SetUnpacked(x0,y0,z0)
+end
+
+local str_find = string.find
+local str_sub = string.sub
+function str_lines(str)
+    local setinel = 0
+    return function()
+        local k, b = str_find(str, "\n", setinel+1)
+        if not k then return end
+        b, setinel = setinel, k
+        return str_sub(str, b+1, k-1)
+    end
 end
 
 return __lib

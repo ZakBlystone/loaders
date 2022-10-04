@@ -35,7 +35,8 @@ SOFTWARE.
 AddCSLuaFile()
 local __lib = alchemy.MakeLib({
     using = {
-        include("../../common/datareader.lua")
+        include("../../common/datareader.lua"),
+        include("../../common/keytable.lua"),
     }
 })
 
@@ -300,7 +301,10 @@ function LoadVCollideString( data, solidCount )
 
     end_data()
 
-    return solids
+    return {
+        solids = solids,
+        data = new_keytable():FromString(key_data):ToTable(),
+    }
 
 end
 
@@ -327,11 +331,16 @@ function LoadVCollideFile( filename, path )
 
     local remain = get_data_size() - tell_data()
     local key_data = charstr(remain)
-    print(key_data)
+    for line in str_lines(key_data) do
+        MsgC(Color(255,255,255), line .. "\n")
+    end
 
     end_data()
 
-    return solids
+    return {
+        solids = solids,
+        data = new_keytable():FromString(key_data):ToTable(),
+    }
 
 end
 
@@ -406,7 +415,7 @@ function DrawVCollide( vcollide )
     render.SetMaterial(vcollide_mat)
     render.OverrideDepthEnable(true, true)
 
-    for k,solid in ipairs(vcollide) do
+    for k,solid in ipairs(vcollide.solids) do
         --if k == 1 then continue end
         points = solid.points
         DrawNode( solid.root )

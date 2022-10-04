@@ -149,7 +149,7 @@ function PlanesToTemplate( points, planes )
     local lines = {}
     local function hash_key(a, b) return bor(lshift(a, 16),b) end
 
-    PrintTable(planes)
+    --PrintTable(planes)
 
     for k, plane in ipairs( planes ) do
 

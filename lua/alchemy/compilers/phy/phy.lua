@@ -180,11 +180,11 @@ solid {
 "index" "0"
 "name" "physmodel"
 "mass" "50"
-"surfaceprop" "solidmetal"
+"surfaceprop" "flesh"
 "damping" "0"
 "rotdamping" "0"
 "intertia" "1"
-"volume" "216000"
+"volume" "21000"
 }
 editparams {
 "rootname" ""
@@ -192,7 +192,7 @@ editparams {
 "concave" "0"
 }]]
 
-    final_keys:Write()
+    --final_keys:Write()
     nullstr(keys)
     end_data()
 

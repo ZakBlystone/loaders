@@ -35,7 +35,8 @@ SOFTWARE.
 AddCSLuaFile()
 local __lib = alchemy.MakeLib({
     using = {
-        include("alchemy/common/datawriter.lua"),
+        include("../../common/datawriter.lua"),
+        include("../../common/keytable.lua"),
         include("vtx.lua"),
         include("vvd.lua"),
         alchemy.Compiler("phy"),
@@ -69,7 +70,7 @@ local function mdl_bone(v)
         flags = int32(v:GetFlags()),
         proctype = int32(0),
         procindex = int32(0),
-        physicsbone = int32(0),
+        physicsbone = int32(v:GetPhysBoneID()),
         surfaceprop = indirect_name(v:GetSurfaceProp(), base),
         contents = int32(v:GetContents()),
         unused = array_of(int32, {0,0,0,0,0,0,0,0}),
@@ -473,7 +474,7 @@ local function mdl_header(v)
         ikchains = indirect_array( mdl_ikchain, v.ikchains ),
         mouths = indirect_array( mdl_mouth, v.mouths ),
         poseparams = indirect_array( mdl_poseparamdesc, v.poseparams ),
-        surfacepropidx = indirect_name("solidmetal", base),
+        surfacepropidx = indirect_name(v:GetSurfaceProp(), base),
         keyvalues = indirect_name(v:GetKeyValuesString(), base, true),
         localikautoplaylocks = indirect_array( mdl_iklock, v.iklocks ),
         mass = float32(v:GetMass()),
