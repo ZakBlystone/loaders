@@ -39,29 +39,40 @@ if CLIENT then
         q(Angle(0,0,-90))
     end
 
-    local ref = mdl.LoadModel("models/n7legion/fortnite/hybrid_player.mdl")
+    local ref = mdl.LoadModel("models/Police.mdl")
     print("loaded reference ok")
 
-    local renderdata = ref:RenderBodyPart(ref:GetBodyPart(2), 0, {})
     local studiomdl = alchemy.Compiler("mdl")
 
-    local studio = studiomdl.New("gtest7")
+    local studio = studiomdl.New("modeltests/gtest1")
     local rootbone = studio:Bone("rootbone")
-    --local model = studio:BodyPart():Model()
-    --local msh = model:Mesh( "models/flesh" )
-    --local stripgroup = msh:StripGroup()
-    --local strip0 = stripgroup:Strip()
 
-    print(#ref:GetBodyParts() .. " bodyparts")
+    --[[local model = studio:BodyPart():Model()
+    local msh = model:Mesh( "models/flesh" )
+    local stripgroup = msh:StripGroup()
+    local strip = stripgroup:Strip()
+    make_cube(strip, 15, Vector(0,0,0))
+
+    local bp1 = studio:BodyPart()
+    local model = bp1:Model()
+    local msh = model:Mesh( "models/props_wasteland/wood_fence01a" )
+    local stripgroup = msh:StripGroup()
+    local strip = stripgroup:Strip()
+    make_cube(strip, 15, Vector(0,0,40))
+
+    bp1:Model()]]
+
+    -- Current failure case:
+    -- Spawning this model will work, can shoot and it makes decals (sometimes)
+    -- Enable the 'manhack' submodel and shoot it, and the game crashes
+    
     for k, part in ipairs(ref:GetBodyParts()) do
         --if k ~= 1 and k ~= 2 and k ~= 4 then continue end
-        --if k ~= 1 and k ~= 4 then continue end
-        print("BODYPART: " .. part.name)
+        --if k ~= 3 then continue end
         local newPart = studio:BodyPart(part.name)
         for _, model in ipairs(part.models) do
-            print(" -> MODEL: " .. model.name)
             local newModel = newPart:Model(model.name)
-            for _, msh in ipairs(model.meshes) do
+            for k, msh in ipairs(model.meshes) do
                 local renderdata = ref:RenderMesh(msh, 0, {})
                 local newMesh = newModel:Mesh( ref:GetMeshMaterial(msh, 0, true) )
                 local newStrip = newMesh:StripGroup():Strip()
@@ -75,7 +86,6 @@ if CLIENT then
                 for i=1, #indices, 3 do
                     newStrip:Triangle(indices[i], indices[i+1], indices[i+2])
                 end
-
             end
         end
     end
@@ -91,20 +101,15 @@ if CLIENT then
         strip0:Triangle(indices[i], indices[i+1], indices[i+2])
     end]]
 
-    --make_cube(strip0, 10, Vector(0,0,0))
-    --make_cube(strip0, 10, Vector(0,0,40))
-
     local phys = studio:PhysBone( rootbone )
     phys:SetSurfaceProp("bloodyflesh")
     phys:BuildFromEntireModel()
     studio:Write()
-    --studio:Mount("__gtest1")
-
-    --local strip1 = stripgroup:Strip()
-    --make_cube(strip1, 30, Vector(200,0,50))
+    --studio:Mount()
 
     hook.Add("PostDrawOpaqueRenderables", "test_studio", function()
     
+        if true then return end
         local mtx = Matrix()
         mtx:SetTranslation(Vector(70,0,0))
         --if true then return end
@@ -113,8 +118,6 @@ if CLIENT then
         cam.PopModelMatrix()
 
     end)
-
-    --if true then return end
     
 
     local mdl_test = "models/Gibs/Fast_Zombie_Legs.mdl"
@@ -122,7 +125,7 @@ if CLIENT then
     --mdl_test = "models/Lamarr.mdl"
     --mdl_test = "models/vortigaunt.mdl"
     --mdl_test = "models/crow.mdl"
-    --mdl_test = "models/Alyx.mdl"
+    mdl_test = "models/Police.mdl"
     --mdl_test = "models/kazditi/protogen/protogen.mdl"
     --mdl_test = "models/gman_high.mdl"
     --mdl_test = "models/Combine_dropship.mdl"
@@ -132,7 +135,7 @@ if CLIENT then
     --mdl_test = "models/dog.mdl"
     --mdl_test = "models/Zombie/Classic_legs.mdl"
     --mdl_test = "models/raptor/aeon_enhanced/aeon.mdl"
-    mdl_test = "models/n7legion/fortnite/hybrid_player.mdl"
+    --mdl_test = "models/n7legion/fortnite/hybrid_player.mdl"
     --mdl_test = "models/player/LeymiRBA/GrifGrif.mdl" --[this one breaks...]
     --mdl_test = "models/Gibs/Fast_Zombie_Torso.mdl"
     --mdl_test = "models/Combine_Strider.mdl"
@@ -182,7 +185,7 @@ if CLIENT then
         --print("SEQUENCES")
         --PrintTable(loaded.local_sequences)
         --print(loaded.name)
-        utils.print_table(loaded.bodyparts, "", {"vertices", "indices"}, -1, 20)
+        --utils.print_table(loaded.bodyparts, "", {"indices", "vertices", "flexes"}, -1, 20)
     end
 
     --PrintTable(loaded.vvd.vertices)
@@ -194,7 +197,7 @@ if CLIENT then
     
         --if true then return end
         if not loaded then return end
-        --loaded:Render()
+        loaded:Render()
         if loaded.phy and false then
             --mdl.DrawVCollide( loaded.phy )
             local solids = loaded.phy.solids
@@ -214,8 +217,8 @@ if CLIENT then
             --print("no phy: " .. CurTime())
         end
 
-        local parts = loaded:GetBodyParts()
-        loaded:RenderModel( parts[8].models[2] )
+        --local parts = loaded:GetBodyParts()
+        --loaded:RenderModel( parts[1].models[1] )
     
     end)
     

@@ -61,6 +61,7 @@ VTX_VERSION = 7
 MAX_NUM_BONES_PER_VERT = 3
 MAX_NUM_LODS = 8
 
+-- A bone state change maps a fixed number of hardware bones to logical bones
 local function vtx_bonestatechange(v)
 
     return {
@@ -91,8 +92,10 @@ local function vtx_strip(v)
         vertOffset = int32(v.vertOffset),
         numBones = int16(v.numBones),
         flags = uint8(STRIP_IS_TRILIST),
-        boneStateChanges = indirect_array(vtx_bonestatechange, v.boneStateChanges), -- figure out
+        boneStateChanges = indirect_array(vtx_bonestatechange, v.boneStateChanges),
     }
+
+    defer_indirect_array(strip, base, "boneStateChanges")
 
     return strip
 

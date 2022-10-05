@@ -1399,9 +1399,9 @@ local function LoadMDL( filename, path )
         for _, path in ipairs(header.cdtextures) do
             local material = mat_lookup[tex] or Material(path .. tex.name)
             if material and not material:IsError() then
-                header.materials[#header.materials+1] = material
+                header.materials[i] = material
+                header.material_strings[i] = path .. tex.name
             end
-            header.material_strings[#header.material_strings+1] = path .. tex.name
         end
     end
 

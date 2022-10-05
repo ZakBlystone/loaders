@@ -96,8 +96,13 @@ function m_strip:Init()
     self.indices = {}
     self.bbmins = Vector(math.huge, math.huge, math.huge)
     self.bbmaxs = Vector(-math.huge, -math.huge, -math.huge)
-    self.boneStateChanges = {}
-    self.numBones = 0
+    self.boneStateChanges = {
+        {
+            hardwareID = 0,
+            newBoneID = 0,
+        },
+    }
+    self.numBones = 1
     return self
 
 end
@@ -439,10 +444,10 @@ function m_physbone:GetVolume() return self.volume end -- compute
 local function v_round(v)
 
     local x,y,z = v:Unpack()
-    local factor = 0.5
-    x = math.Round(x * factor) / factor
-    y = math.Round(y * factor) / factor
-    z = math.Round(z * factor) / factor
+    local factor = 1 --0.5
+    --x = math.Round(x * factor) / factor
+    --y = math.Round(y * factor) / factor
+    --z = math.Round(z * factor) / factor
     return Vector(x,y,z)
 
 end
@@ -592,18 +597,16 @@ function m_studio:GetVirtualPaths()
 
 end
 
-function m_studio:Mount( path )
+function m_studio:Mount()
 
     local gma = alchemy.Compiler("gma")
+    local pack = gma.New()
     local data = self:GetVirtualPaths()
 
-    PrintTable(data)
     for k,v in pairs(data) do
-        data[k] = gma.GMA_DiskFile(v)
+        pack:AddFile(k, v)
     end
-
-    gma.GMA_Write(path, data)
-    gma.GMA_Mount(path)
+    pack:Mount()
 
 end
 
@@ -741,6 +744,8 @@ function m_studio:ComputeMaterialList()
     for _, mat in ipairs(self.materials) do
 
         local filename = tostring(mat)
+        print("MATERIAL: " .. filename)
+
         local path = string.GetPathFromFilename(filename)
         local file = string.GetFileFromFilename(filename)
 

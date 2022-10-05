@@ -198,4 +198,45 @@ function compute_center(points, key)
 
 end
 
+-- Converts a GUID from binary to a printable string
+function guid_to_string( guid, raw )
+
+	local fmt = nil
+	if raw then
+		fmt = "%0.2X%0.2X%0.2X%0.2X%0.2X%0.2X%0.2X%0.2X%0.2X%0.2X%0.2X%0.2X%0.2X%0.2X%0.2X%0.2X"
+	else
+		fmt = "{%0.2X%0.2X%0.2X%0.2X-%0.2X%0.2X%0.2X%0.2X-%0.2X%0.2X%0.2X%0.2X-%0.2X%0.2X%0.2X%0.2X}"
+	end
+	return string.format(fmt,
+		guid[1]:byte(),
+		guid[2]:byte(),
+		guid[3]:byte(),
+		guid[4]:byte(),
+		guid[5]:byte(),
+		guid[6]:byte(),
+		guid[7]:byte(),
+		guid[8]:byte(),
+		guid[9]:byte(),
+		guid[10]:byte(),
+		guid[11]:byte(),
+		guid[12]:byte(),
+		guid[13]:byte(),
+		guid[14]:byte(),
+		guid[15]:byte(),
+		guid[16]:byte())
+
+end
+
+-- Generates a new globally unique ID
+function new_guid()
+
+	local d,b,g,m=os.date"*t",function(x,y)return x and y or 0 end,system,bit
+	local r,n,s,u,x,y=function(x,y)return m.band(m.rshift(x,y or 0),0xFF)end,
+	math.random(2^32-1),_G.__guidsalt or b(CLIENT,2^31),os.clock()*1000,
+	d.min*1024+d.hour*32+d.day,d.year*16+d.month;_G.__guidsalt=s+1;return
+	string.char(r(x),r(x,8),r(y),r(y,8),r(n,24),r(n,16),r(n,8),r(n),r(s,24),r(s,16),
+	r(s,8),r(s),r(u,16),r(u,8),r(u),d.sec*4+b(g.IsWindows(),2)+b(g.IsLinux(),1))
+
+end
+
 return __lib

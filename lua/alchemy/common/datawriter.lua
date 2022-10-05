@@ -260,6 +260,7 @@ function write_indirect_array( tbl, base, field, aux, ... )
         push_data( arr.offset )
         uint32( 0 )
         pop_data()
+        tbl[field] = {}
         return 
     end
     
@@ -301,6 +302,12 @@ end
 function nullstr( str )
 
     Write(m_file, str .. "\0")
+
+end
+
+function raw_data( data )
+
+    Write(m_file, data)
 
 end
 

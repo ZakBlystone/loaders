@@ -90,7 +90,7 @@ local function mdl_hitbox(v)
     local bbox = {
         name = "",
         bone = int32(v.boneid),
-        group = int32(0), -- figure out
+        group = int32(0), -- HITGROUP enum (0 = generic)
         bbmin = vector32(v.bbmins),
         bbmax = vector32(v.bbmaxs),
         nameidx = indirect_name(v.name, base),
@@ -288,11 +288,9 @@ end
 
 local function mdl_mesh(v)
 
-    print("MESH MATERIAL IDX: " .. v.materialidx)
-
     local base = tell_data()
     local mesh = {
-        base = base,
+        ptr = base,
         material = int32(v.materialidx),
         modelindex = int32(0),
         numvertices = int32(v.numvertices), -- cache
@@ -348,13 +346,6 @@ local function mdl_model(v)
     defer_indirect_array( model, base, "meshes" )
     defer_indirect_array( model, base, "eyeballs" )
 
-    for _, mesh in ipairs( model.meshes ) do
-        local offset = base - mesh.base
-        push_data( mesh.modelindex )
-        int32(offset)
-        pop_data()
-    end
-
     return model
 
 end
@@ -363,6 +354,7 @@ local function mdl_bodypart(v)
 
     local base = tell_data()
     local part = {
+        ptr = base,
         name = indirect_name( v.name, base ),
         nummodels = int32( #v.models ),
         base = int32(v.base), -- base-2 index
@@ -376,7 +368,9 @@ local function mdl_bodypart(v)
         dtype = mdl_model,
     }
 
-    defer_indirect_array( part, base, models )
+    part.models = models
+
+    defer_indirect_array( part, base, "models" )
 
     return part
 
@@ -539,6 +533,20 @@ local function mdl_header(v)
     defer_indirect_array( header, base, "flexcontrollerui" )
 
     write_deferred_arrays()
+
+    print_table( header.bodyparts, "", {}, 3 )
+
+    for k, bodypart in ipairs( header.bodyparts ) do
+        for l, model in ipairs( bodypart.models ) do
+            for _, mesh in ipairs( model.meshes ) do
+                local offset = model.ptr - mesh.ptr
+                push_data( mesh.modelindex )
+                int32(offset)
+                pop_data()
+            end
+        end
+    end
+
 
     for _, v in ipairs(header.local_anims) do
         push_data(v.studiooffset)
