@@ -62,7 +62,7 @@ local function mdl_bone(v)
         bonecontroller = array_of(int32, {-1, -1, -1, -1, -1, -1}),
         pos = vector32(v:GetPos()),
         quat = quat128(v:GetAnglesQuat()),
-        rot = angle32(v:GetAngles()),
+        rot = angle32(v:GetAngles() * (math.pi / 180)),
         posscale = vector32(Vector(0.003906, 0.003906, 0.003906)),
         rotscale = vector32(Vector(0.000012, 0.000012, 0.000048)),
         poseToBone = matrix3x4(v:GetBindMatrix()),
@@ -109,7 +109,7 @@ local function mdl_hitboxset(v)
         hitboxes = indirect_array( mdl_hitbox, v.hitboxes ),
     }
 
-    write_indirect_array( set, base, "hitboxes" )
+    defer_indirect_array( set, base, "hitboxes" )
 
     return set
 
@@ -141,8 +141,8 @@ local function mdl_animdesc(v)
         zeroframestalltime = float32(0),
     }
 
-    write_indirect_array( anim, base, "movements" )
-    write_indirect_array( anim, base, "localhierarchy" )
+    defer_indirect_array( anim, base, "movements" )
+    defer_indirect_array( anim, base, "localhierarchy" )
 
     return anim
 
@@ -247,10 +247,10 @@ local function mdl_seqdesc(v)
         activitymodifiers = indirect_array(mdl_activitymodifier, v.activitymodifiers, true),
     }
 
-    write_indirect_array( seq, base, "events" )
-    write_indirect_array( seq, base, "autolayers" )
-    write_indirect_array( seq, base, "iklocks" )
-    write_indirect_array( seq, base, "activitymodifiers" )
+    defer_indirect_array( seq, base, "events" )
+    defer_indirect_array( seq, base, "autolayers" )
+    defer_indirect_array( seq, base, "iklocks" )
+    defer_indirect_array( seq, base, "activitymodifiers" )
 
     return seq
 
@@ -261,12 +261,12 @@ local function mdl_texture(v)
     local base = tell_data()
     local tex = {
         name = indirect_name(v.name, base),
-        flags = v.flags,
-        used = v.used,
+        flags = int32(v.flags),
+        used = int32(v.used),
         unused1 = int32(0),
     }
 
-    charstr("", 12*4)
+    array_of(int32, {0,0,0,0,0,0,0,0,0,0,0,0})
 
     return tex
 
@@ -287,6 +287,8 @@ local function mdl_flex(v)
 end
 
 local function mdl_mesh(v)
+
+    print("MESH MATERIAL IDX: " .. v.materialidx)
 
     local base = tell_data()
     local mesh = {
@@ -315,7 +317,7 @@ local function mdl_mesh(v)
     -- unused
     array_of(int32, {0,0,0,0,0,0,0,0})
 
-    write_indirect_array( mesh, base, "flexes" )
+    defer_indirect_array( mesh, base, "flexes" )
 
     return mesh
 
@@ -343,8 +345,8 @@ local function mdl_model(v)
         unused8 = array_of(int32, {0,0,0,0,0,0,0,0}),
     }
 
-    write_indirect_array( model, base, "meshes" )
-    write_indirect_array( model, base, "eyeballs" )
+    defer_indirect_array( model, base, "meshes" )
+    defer_indirect_array( model, base, "eyeballs" )
 
     for _, mesh in ipairs( model.meshes ) do
         local offset = base - mesh.base
@@ -363,7 +365,7 @@ local function mdl_bodypart(v)
     local part = {
         name = indirect_name( v.name, base ),
         nummodels = int32( #v.models ),
-        base = int32(1), -- not sure what this is
+        base = int32(v.base), -- base-2 index
         modelindex = int32(0),
     }
 
@@ -374,7 +376,7 @@ local function mdl_bodypart(v)
         dtype = mdl_model,
     }
 
-    write_indirect_array( part, base, models )
+    defer_indirect_array( part, base, models )
 
     return part
 
@@ -516,25 +518,27 @@ local function mdl_header(v)
     int32(hdr2_base - base)
     pop_data()
 
-    align4() write_indirect_array( header, base, "bones" )
-    align4() write_indirect_array( header, base, "bone_controllers" )
-    align4() write_indirect_array( header, base, "hitbox_sets" )
-    align4() write_indirect_array( header, base, "local_anims" )
-    align4() write_indirect_array( header, base, "local_sequences" )
-    align4() write_indirect_array( header, base, "textures" )
-    align4() write_indirect_array( header, base, "cdtextures" )
-    align4() write_indirect_array( header, base, "bodyparts" )
-    align4() write_indirect_array( header, base, "attachments" )
-    align4() write_indirect_array( header, base, "flexes" )
-    align4() write_indirect_array( header, base, "flexcontrollers" )
-    align4() write_indirect_array( header, base, "flexrules" )
-    align4() write_indirect_array( header, base, "ikchains" )
-    align4() write_indirect_array( header, base, "mouths" )
-    align4() write_indirect_array( header, base, "poseparams" )
-    align4() write_indirect_array( header, base, "localikautoplaylocks" )
-    align4() write_indirect_array( header, base, "includemodels" )
-    align4() write_indirect_array( header, base, "animblocks" )
-    align4() write_indirect_array( header, base, "flexcontrollerui" )
+    defer_indirect_array( header, base, "bones" )
+    defer_indirect_array( header, base, "bone_controllers" )
+    defer_indirect_array( header, base, "hitbox_sets" )
+    defer_indirect_array( header, base, "local_anims" )
+    defer_indirect_array( header, base, "local_sequences" )
+    defer_indirect_array( header, base, "textures" )
+    defer_indirect_array( header, base, "cdtextures" )
+    defer_indirect_array( header, base, "bodyparts" )
+    defer_indirect_array( header, base, "attachments" )
+    defer_indirect_array( header, base, "flexes" )
+    defer_indirect_array( header, base, "flexcontrollers" )
+    defer_indirect_array( header, base, "flexrules" )
+    defer_indirect_array( header, base, "ikchains" )
+    defer_indirect_array( header, base, "mouths" )
+    defer_indirect_array( header, base, "poseparams" )
+    defer_indirect_array( header, base, "localikautoplaylocks" )
+    defer_indirect_array( header, base, "includemodels" )
+    defer_indirect_array( header, base, "animblocks" )
+    defer_indirect_array( header, base, "flexcontrollerui" )
+
+    write_deferred_arrays()
 
     for _, v in ipairs(header.local_anims) do
         push_data(v.studiooffset)
@@ -607,6 +611,8 @@ local function mdl_header(v)
     push_data( header.length )
     int32(length)
     pop_data()
+
+    alchemy.utils.print_table(header.textures)
 
 end
 

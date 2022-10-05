@@ -112,9 +112,9 @@ local function vtx_stripgroup( v )
 
     --PrintTable(group)
 
-    write_indirect_array(group, base, "vertices")
-    write_indirect_array(group, base, "indices")
-    write_indirect_array(group, base, "strips")
+    defer_indirect_array(group, base, "vertices")
+    defer_indirect_array(group, base, "indices")
+    defer_indirect_array(group, base, "strips")
 
     return group
 
@@ -128,7 +128,7 @@ local function vtx_mesh(v)
         flags = uint8(0), -- teeth / eyes
     }
 
-    write_indirect_array(mesh, base, "stripgroups")
+    defer_indirect_array(mesh, base, "stripgroups")
     return mesh
 
 end
@@ -142,7 +142,7 @@ local function vtx_modellod(v)
         switchPoint = float32(0),
     }
 
-    write_indirect_array(lod, base, "meshes")
+    defer_indirect_array(lod, base, "meshes")
     return lod
 
 end
@@ -154,7 +154,7 @@ local function vtx_model(v)
         lods = indirect_array(vtx_modellod, { v }),
     }
 
-    write_indirect_array(model, base, "lods")
+    defer_indirect_array(model, base, "lods")
     return model
 
 end
@@ -166,7 +166,7 @@ local function vtx_bodypart(v)
         models = indirect_array(vtx_model, v.models),
     }
 
-    write_indirect_array(part, base, "models")
+    defer_indirect_array(part, base, "models")
     return part
 
 end
@@ -190,7 +190,7 @@ local function vtx_materialreplacementlist(v)
         replacements = indirect_array(vtx_materialreplacement, v.replacements)
     }
 
-    write_indirect_array(replacelist, base, "replacements")
+    defer_indirect_array(replacelist, base, "replacements")
     return replacelist
 
 end
@@ -212,7 +212,7 @@ local function vtx_header(v)
 
     --PrintTable(header)
 
-    write_indirect_array(header, 0, "bodyParts")
+    defer_indirect_array(header, 0, "bodyParts")
 
     local list_offset = tell_data() - base
     push_data(header.materialReplacementListOffset)
@@ -222,6 +222,8 @@ local function vtx_header(v)
     vtx_materialreplacementlist( {
         replacements = {},
     } )
+
+    write_deferred_arrays()
 
     return header
 

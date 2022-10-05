@@ -244,7 +244,7 @@ local function mdl_bone()
         bonecontroller = array_of(int32, 6),
         pos = vector32(),
         quat = quat128(),
-        rot = angle32(),
+        rot = angle32() * (180 / math.pi),
         posscale = vector32(),
         rotscale = vector32(),
         poseToBone = matrix3x4(),
@@ -256,6 +256,9 @@ local function mdl_bone()
         surfacepropidx = int32(),
         contents = int32(),
     }
+
+    bone.invPoseToBone = Matrix(bone.poseToBone)
+    bone.invPoseToBone:Invert()
 
     push_data(base + bone.procindex)
     if bone.proctype == STUDIO_PROC_AXISINTERP then
@@ -598,6 +601,8 @@ local function mdl_texture()
         used = int32(),
         unused1 = int32(),
     }
+
+    print("TEXTURE NAME IDX[" .. base .. "]: " .. tex.nameidx)
 
     array_of(int32, 12) -- unused
 
@@ -1084,8 +1089,7 @@ local function mdl_header()
     indirect_name(header, base, "keyvaluesidx", "keyvaluessize")
 
     header.keyvalues = new_keytable():FromString(header.keyvalues):ToTable()
-
-    header.rawheader = table.Copy(header)
+    --header.rawheader = table.Copy(header)
 
     return header
 
@@ -1177,19 +1181,32 @@ end
 local mdl_meta = {}
 mdl_meta.__index = mdl_meta
 
+function mdl_meta:FindBone( name )
+
+    return self.bonesbyname[name]
+
+end
+
 function mdl_meta:GetBodyParts()
 
     return self.bodyparts
 
 end
 
-function mdl_meta:GetMeshMaterial( mesh, skin )
+function mdl_meta:GetBodyPart(i)
 
+    return self.bodyparts[i]
+
+end
+
+function mdl_meta:GetMeshMaterial( mesh, skin, as_string )
+
+    skin = skin or 0
     local mtl_idx = mesh.material
     local tbl = self.skins[skin+1]
     if tbl then mtl_idx = tbl[mtl_idx+1] or mtl_idx end
 
-    return self.materials[mtl_idx+1]
+    return as_string and self.material_strings[mtl_idx+1] or self.materials[mtl_idx+1]
 
 end
 
@@ -1221,11 +1238,30 @@ local function AppendTri(v0,v1,v2)
 
 end
 
-function mdl_meta:RenderStrip( group, strip )
+function mdl_meta:RenderStrip( group, strip, output )
 
     if not strip then return end
 
     local vertices = self:GetVertices()
+
+    if output then
+        output.vertices = output.vertices or {}
+        output.indices = output.indices or {}
+        output.idx_hash = output.idx_hash or {}
+
+        local hash = output.idx_hash
+        local indices = output.indices
+        local out_vertices = output.vertices
+        for i=1, strip.numIndices do
+            local idx = group.indices[i]
+            if not hash[idx] then
+                out_vertices[#out_vertices+1] = vertices[idx]
+                hash[idx] = #out_vertices
+            end
+            indices[#indices+1] = hash[idx]
+        end
+        return output
+    end
 
     local num = strip.numIndices / 3
     local i = 1 + strip.indexOffset
@@ -1257,15 +1293,16 @@ function mdl_meta:RenderStrip( group, strip )
 
 end
 
-function mdl_meta:RenderStripGroup( group )
+function mdl_meta:RenderStripGroup( group, output )
 
     for i=1, #group.strips do
-        self:RenderStrip( group, group.strips[i] )
+        self:RenderStrip( group, group.strips[i], output )
     end
+    return output
 
 end
 
-function mdl_meta:RenderMesh( msh, skin )
+function mdl_meta:RenderMesh( msh, skin, output )
 
     local mat = self:GetMeshMaterial(msh, (skin or 0))
     if not mat then mat = Material("hunter/myplastic") end
@@ -1274,45 +1311,49 @@ function mdl_meta:RenderMesh( msh, skin )
 
     for _, group in ipairs(msh.stripgroups) do
 
-        self:RenderStripGroup( group )
+        self:RenderStripGroup( group, output )
 
     end
+    return output
 
 end
 
-function mdl_meta:RenderModel( model, skin )
+function mdl_meta:RenderModel( model, skin, output )
 
-    if not model then return end
+    --if not model then return end
     for _, msh in ipairs(model.meshes) do
 
-        self:RenderMesh(msh, skin)
+        self:RenderMesh(msh, skin, output)
 
     end
+    return output
 
 end
 
-function mdl_meta:RenderBodyPart( part, skin )
+function mdl_meta:RenderBodyPart( part, skin, output )
 
     if not part then return end
     for _, m in ipairs(part.models) do
 
         for _, msh in ipairs(m.meshes) do
 
-            self:RenderMesh(msh, skin)
+            self:RenderMesh(msh, skin, output)
 
         end
 
     end
+    return output
 
 end
 
-function mdl_meta:Render(skin)
+function mdl_meta:Render(skin, output)
 
     for _, p in ipairs(self:GetBodyParts()) do
 
-        self:RenderBodyPart(p, skin)
+        self:RenderBodyPart(p, skin, output)
 
     end
+    return output
 
 end
 
@@ -1352,6 +1393,7 @@ local function LoadMDL( filename, path )
 
     local mat_lookup = {}
     header.materials = {}
+    header.material_strings = {}
 
     for i, tex in ipairs(header.textures) do
         for _, path in ipairs(header.cdtextures) do
@@ -1359,7 +1401,13 @@ local function LoadMDL( filename, path )
             if material and not material:IsError() then
                 header.materials[#header.materials+1] = material
             end
+            header.material_strings[#header.material_strings+1] = path .. tex.name
         end
+    end
+
+    header.bonesbyname = {}
+    for _, bone in ipairs(header.bones) do
+        header.bonesbyname[bone.name] = bone
     end
 
     --PrintTable(header.bones)
@@ -1431,6 +1479,7 @@ local function LoadBundle( filename, path )
     local vvd_filename = filename:sub(1, -4) .. "vvd"
     local vtx_filename = filename:sub(1, -4) .. "dx90.vtx"
     local phy_filename = filename:sub(1, -4) .. "phy"
+    path = path or "GAME"
 
     if mdl_filename:sub(-3,-1) == "dat" then
         local base = string.GetPathFromFilename(filename)
@@ -1444,18 +1493,21 @@ local function LoadBundle( filename, path )
     local mdl = LoadMDL( mdl_filename, path )
     local vvd = LoadVVD( vvd_filename, path, 1, true )
     local vtx = LoadVTX( vtx_filename, path, mdl.version )
-    local phy = LoadVCollideFile( phy_filename, path )
     assert(mdl.checksum == vtx.checksum)
     assert(mdl.checksum == vvd.checksum)
 
     mdl.vtx = vtx
     mdl.vvd = vvd
-    mdl.phy = phy
 
-    print(#vvd.vertices .. " verts")
+    if file.Exists( phy_filename, path ) then
+        local phy = LoadVCollideFile( phy_filename, path )
+        mdl.phy = phy
+    end
 
-    local flexes_converted = band(mdl.flags, STUDIOHDR_FLAGS_FLEXES_CONVERTED) ~= 0
-    print("FLEXES CONVERTED: " .. tostring(flexes_converted) )
+    --print(#vvd.vertices .. " verts")
+
+    --local flexes_converted = band(mdl.flags, STUDIOHDR_FLAGS_FLEXES_CONVERTED) ~= 0
+    --print("FLEXES CONVERTED: " .. tostring(flexes_converted) )
 
     for i=1, #mdl.bodyparts do
         for j=1, #mdl.bodyparts[i].models do

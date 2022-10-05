@@ -56,6 +56,9 @@ local str_find = string.find
 local str_char = string.char
 local lshift, rshift, band, bor, bnot = bit.lshift, bit.rshift, bit.band, bit.bor, bit.bnot
 
+local m_solid = {}
+m_solid.__index = m_solid
+
 local CompactLedgeSize = 16
 local function CompactLedge()
 
@@ -236,6 +239,8 @@ local function LoadPhysCollideCompactSurface( header, index )
     out_surface.root = root
     out_surface.points = {}
 
+    setmetatable(out_surface, m_solid)
+
     local point_addr = base + CompactSurfaceSize +
     num_ledges * CompactLedgeSize +
     num_tris * CompactTriangleSize
@@ -281,6 +286,20 @@ local function LoadPhysCollide( size, index )
 
 end
 
+local function CopyDataIntoSolids( data, solids )
+
+    for _,v in ipairs(data.solid) do
+
+        local idx = v.index
+        local solid = solids[idx+1]
+        assert(solid, "Solid not found for index: " .. tostring(idx))
+
+        solid.data = v
+
+    end
+
+end
+
 function LoadVCollideString( data, solidCount )
 
     begin_data( data )
@@ -298,12 +317,15 @@ function LoadVCollideString( data, solidCount )
 
     local remain = get_data_size() - tell_data()
     local key_data = charstr(remain)
+    local data = new_keytable():FromString(key_data):ToTable()
+
+    CopyDataIntoSolids(data, solids)
 
     end_data()
 
     return {
         solids = solids,
-        data = new_keytable():FromString(key_data):ToTable(),
+        data = data,
     }
 
 end
@@ -331,15 +353,15 @@ function LoadVCollideFile( filename, path )
 
     local remain = get_data_size() - tell_data()
     local key_data = charstr(remain)
-    for line in str_lines(key_data) do
-        MsgC(Color(255,255,255), line .. "\n")
-    end
+    local data = new_keytable():FromString(key_data):ToTable()
+
+    CopyDataIntoSolids(data, solids)
 
     end_data()
 
     return {
         solids = solids,
-        data = new_keytable():FromString(key_data):ToTable(),
+        data = data,
     }
 
 end
@@ -360,11 +382,28 @@ local mesh_end = mesh.End
 local mesh_position = mesh.Position
 local mesh_color = mesh.Color
 local mesh_advance = mesh.AdvanceVertex
+local render_num = 0
+local colors = {
+    Color(218,65,65),
+    Color(117,212,53),
+    Color(24,206,206),
+    Color(221,207,76),
+    Color(225,0,245),
+    Color(133,51,136),
+    Color(173,250,243),
+    Color(190,255,13),
+    Color(214,173,97),
+    Color(116,158,155),
+    Color(173,102,102),
+    Color(167,102,173),
+    Color(42,136,190),
+}
 
 function DrawCompactLedge( ledge, points )
 
     points = ledge.points or points
-    local c = ColorRand()
+    local c = colors[ 1 + (render_num-1) % #colors ]
+    render_num = render_num + 1
      
     local ok = true
     mesh_begin( MATERIAL_TRIANGLES, #ledge.triangles )
@@ -419,6 +458,33 @@ function DrawVCollide( vcollide )
         --if k == 1 then continue end
         points = solid.points
         DrawNode( solid.root )
+    end
+
+    render.OverrideDepthEnable(false, false)
+
+end
+
+local function DrawNode( node, points )
+
+    if node.leaf then DrawCompactLedge( node.leaf, points ) end
+    if node.left then DrawNode( node.left, points ) end
+    if node.right then DrawNode( node.right, points ) end
+
+end
+
+function m_solid:Render(i)
+
+    i = i or 0
+    render_num = i
+
+    render.SetMaterial(vcollide_mat)
+    render.OverrideDepthEnable(true, true)
+
+    if self.root.left and self.root.right then
+        DrawNode( self.root.left, self.points )
+        DrawNode( self.root.right, self.points )
+    else
+        DrawNode( self.root, self.points )
     end
 
     render.OverrideDepthEnable(false, false)

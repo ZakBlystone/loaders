@@ -185,4 +185,17 @@ function str_lines(str)
     end
 end
 
+function compute_center(points, key)
+
+    local center = Vector()
+    local add = center.Add
+    for _,v in ipairs(points) do
+        local p = key and v[key] or v
+        add(center, p)
+    end
+    center:Div(#points)
+    return center
+
+end
+
 return __lib

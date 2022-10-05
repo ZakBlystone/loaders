@@ -68,6 +68,45 @@ function quat_meta:Angle()
 
 end
 
+local deg_2_rad = math.pi / 180
+function quat_meta:FromAngles(angles)
+
+	local p,y,r = angles:Unpack()
+	p = p * deg_2_rad
+	y = y * deg_2_rad
+	r = r * deg_2_rad
+
+	local sp = math.sin(p * 0.5)
+	local cp = math.cos(p * 0.5)
+
+	local sy = math.sin(y * 0.5)
+	local cy = math.cos(y * 0.5)
+
+	local sr = math.sin(r * 0.5)
+	local cr = math.cos(r * 0.5)
+
+	local srXcp = sr * cp
+	local crXsp = cr * sp
+
+	self.x = srXcp*cy-crXsp*sy; // X
+	self.y = crXsp*cy+srXcp*sy; // Y
+
+	local crXcp = cr * cp
+	local srXsp = sr * sp;
+
+	self.z = crXcp*sy-srXsp*cy; // Z
+	self.w = crXcp*cy+srXsp*sy; // W (real component)
+
+	return self
+
+end
+
+function quat_meta:FromMatrix(m)
+
+	return self:FromAngles( m:GetAngles() )
+
+end
+
 function quat_meta:RotateVector(v)
 
     local x,y,z = v:Unpack()

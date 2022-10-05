@@ -38,7 +38,8 @@ end
 
 -- class
 
-local EPSILON = 2e-52;
+-- Increase tolerance to reduce co-planar surfaces
+local EPSILON = 1e-6 --2e-52;
 
 local MERGE_NON_CONVEX_WRT_LARGER_FACE = 1;
 local MERGE_NON_CONVEX = 2;

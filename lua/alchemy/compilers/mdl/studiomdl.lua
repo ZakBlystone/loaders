@@ -165,45 +165,57 @@ function m_strip:Render()
 
     assert(vertices and tangents)
 
-    mesh.Begin( MATERIAL_TRIANGLES, #indices / 3 )
+    local num = self.numIndices / 3
+    local i = 1 + self.indexOffset
+    while num > 0 do
 
-    for i=1, self.numIndices, 3 do
-        local i0 = indices[self.indexOffset + i] + 1
-        local i1 = indices[self.indexOffset + i+1] + 1
-        local i2 = indices[self.indexOffset + i+2] + 1
+        local sec = math.min(10922, num)
+        mesh.Begin( MATERIAL_TRIANGLES, sec )
 
-        local v0 = vertices[vverts[i0].origMeshVertID+1]
-        local v1 = vertices[vverts[i1].origMeshVertID+1]
-        local v2 = vertices[vverts[i2].origMeshVertID+1]
+        for j=1, sec do
 
-        if v0 and v1 and v2 then
+            local i0 = indices[i] + 1
+            local i1 = indices[i+1] + 1
+            local i2 = indices[i+2] + 1
 
-            local t0 = tangents[i0]
-            local t1 = tangents[i1]
-            local t2 = tangents[i2]
+            local v0 = vertices[vverts[i0].origMeshVertID+1]
+            local v1 = vertices[vverts[i1].origMeshVertID+1]
+            local v2 = vertices[vverts[i2].origMeshVertID+1]
 
-            mesh.Position(v0.position)
-            mesh.Normal(v0.normal)
-            mesh.TexCoord(0, v0.u, v0.v)
-            mesh.UserData(t0.x, t0.y, t0.z, t0.w)
-            mesh.AdvanceVertex()
+            if v0 and v1 and v2 then
 
-            mesh.Position(v1.position)
-            mesh.Normal(v1.normal)
-            mesh.TexCoord(0, v1.u, v1.v)
-            mesh.UserData(t1.x, t1.y, t1.z, t1.w)
-            mesh.AdvanceVertex()
-
-            mesh.Position(v2.position)
-            mesh.Normal(v2.normal)
-            mesh.TexCoord(0, v2.u, v2.v)
-            mesh.UserData(t2.x, t2.y, t2.z, t2.w)
-            mesh.AdvanceVertex()
+                local t0 = tangents[i0]
+                local t1 = tangents[i1]
+                local t2 = tangents[i2]
+    
+                mesh.Position(v0.position)
+                mesh.Normal(v0.normal)
+                mesh.TexCoord(0, v0.u, v0.v)
+                mesh.UserData(t0.x, t0.y, t0.z, t0.w)
+                mesh.AdvanceVertex()
+    
+                mesh.Position(v1.position)
+                mesh.Normal(v1.normal)
+                mesh.TexCoord(0, v1.u, v1.v)
+                mesh.UserData(t1.x, t1.y, t1.z, t1.w)
+                mesh.AdvanceVertex()
+    
+                mesh.Position(v2.position)
+                mesh.Normal(v2.normal)
+                mesh.TexCoord(0, v2.u, v2.v)
+                mesh.UserData(t2.x, t2.y, t2.z, t2.w)
+                mesh.AdvanceVertex()
+    
+            end
+            i = i + 3
 
         end
-    end
 
-    mesh.End()
+        mesh.End()
+        num = num - sec
+
+
+    end
 
 end
 
@@ -309,6 +321,7 @@ function m_model:Mesh( material )
 
     local m = m_mesh.New( matID, material )
     m.model = self
+    m.materialidx = matID-1
     self.meshes[#self.meshes+1] = m
     return m
 
@@ -345,6 +358,14 @@ function m_bodypart:Model( name )
 
 end
 
+function m_bodypart:Render()
+
+    for _, model in ipairs(self.models) do
+        model:Render()
+    end
+
+end
+
 -- BONE
 function m_bone:Init( name )
 
@@ -360,21 +381,13 @@ function m_bone:Init( name )
 end
 
 function m_bone:GetPos() return self.matrix:GetTranslation() end
-function m_bone:GetAnglesQuat()
+function m_bone:GetAnglesQuat() return quat():FromMatrix(self.matrix) end
 
-    -- todo: implement
-    return quat(0,0,0,1)
-
-end
-
-function m_bone:GetQuatAlignment()
-
-    -- todo: implement
-    return quat(0,0,0,1)
-
-end
+-- Used for limiting bone rotations, implement later if needed
+function m_bone:GetQuatAlignment() return quat(0,0,0,0) end
 
 function m_bone:GetAngles() return self.matrix:GetAngles() end
+function m_bone:GetMatrix() return self.matrix end
 function m_bone:GetBindMatrix() return self.bindmatrix end
 function m_bone:GetFlags() return self.flags end
 function m_bone:GetContents() return CONTENTS_SOLID end
@@ -397,9 +410,9 @@ function m_bone:SetPhysBone( physbone )
 end
 
 -- PHYSBONE
-function m_physbone:Init( name )
+function m_physbone:Init( bone )
 
-    self.name = name
+    self.name = bone:GetName()
     self.mass = 10
     self.surfaceprop = "metal"
     self.damping = 0
@@ -426,7 +439,7 @@ function m_physbone:GetVolume() return self.volume end -- compute
 local function v_round(v)
 
     local x,y,z = v:Unpack()
-    local factor = 100000
+    local factor = 0.5
     x = math.Round(x * factor) / factor
     y = math.Round(y * factor) / factor
     z = math.Round(z * factor) / factor
@@ -508,8 +521,17 @@ function m_hitboxset:Hitbox( name )
 end
 
 -- STUDIO
-function m_studio:Init()
+function m_studio:Init(name)
 
+    assert(type(name) == "string", "Studio requires a name")
+
+    if string.find(name, "%.mdl") then
+        name = name:sub(1,-5)
+    end
+
+    print("STUDIO: '" .. name .. "'")
+    
+    self.name = name
     self.attachments = {}
     self.bones = {}
     self.bonecontrollers = {}
@@ -546,15 +568,48 @@ function m_studio:Init()
     self.materials = {}
     self.physbones = {}
 
-    self:Bone("rootbone")
-
     return self
+
+end
+
+function m_studio:Render()
+
+    for _, part in ipairs(self.bodyparts) do
+        part:Render()
+    end
+
+end
+
+function m_studio:GetVirtualPaths()
+
+    return {
+        ["models/" .. self.name .. ".mdl"] = "studio/mdl.dat",
+        ["models/" .. self.name .. ".dx90.vtx"] = "studio/vtx.dat",
+        ["models/" .. self.name .. ".dx80.vtx"] = "studio/vtx.dat",
+        ["models/" .. self.name .. ".vvd"] = "studio/vvd.dat",
+        ["models/" .. self.name .. ".phy"] = "studio/phy.dat",
+    }
+
+end
+
+function m_studio:Mount( path )
+
+    local gma = alchemy.Compiler("gma")
+    local data = self:GetVirtualPaths()
+
+    PrintTable(data)
+    for k,v in pairs(data) do
+        data[k] = gma.GMA_DiskFile(v)
+    end
+
+    gma.GMA_Write(path, data)
+    gma.GMA_Mount(path)
 
 end
 
 -- todo: implement
 function m_studio:GetChecksum() return 8888 end
-function m_studio:GetName() return "generated.mdl" end
+function m_studio:GetName() return self.name .. ".mdl" end
 function m_studio:GetEyePos() return Vector(0,0,0) end
 function m_studio:GetIllumPos() return Vector(0,0,0) end
 function m_studio:GetHullMin() return self.bbmins end
@@ -594,13 +649,16 @@ function m_studio:Bone( name )
 
 end
 
-function m_studio:PhysBone( name )
+function m_studio:PhysBone( bone )
 
-    if name == nil then name = "physbone_" .. #self.physbones end
-    local phys = m_physbone.New( name )
+    assert(type(bone) == "table" and getmetatable(bone) == m_bone, "Expect bone")
+    if bone.physbone then return bone.physbone end
+
+    local phys = m_physbone.New( bone )
     phys.studio = self
     phys.id = #self.physbones
     self.physbones[#self.physbones+1] = phys
+    bone.physbone = phys
     return phys
 
 end
@@ -629,8 +687,16 @@ end
 
 function m_studio:AssignMeshIDs()
 
+    table.sort(self.bodyparts, function(a,b)
+        return #a.models < #b.models
+    end)
+
     local num = 0
+    local base = 1
     for _, part in ipairs( self.bodyparts ) do
+        part.base = base
+        base = base * #part.models
+        --if #part.models > 1 then base = base * 2 end
         for _, model in ipairs(part.models) do
             for k, mesh in ipairs(model.meshes) do
                 mesh.meshid = num
@@ -752,9 +818,9 @@ function m_studio:Write( filename )
 
 end
 
-function New()
+function New(name)
 
-    return m_studio.New()
+    return m_studio.New(name)
 
 end
 

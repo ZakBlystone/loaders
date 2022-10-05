@@ -253,7 +253,8 @@ function meta:CheckTriangles()
             assert(edge.triangle == tri, "Edge belongs to wrong triangle")
         end
 
-        assert(tri:CalcAreaSize() >= 1e-6, "Degenerate area size")
+        local area_size = tri:CalcAreaSize()
+        assert(area_size >= 1e-6, "Degenerate area size: " .. area_size)
 
         tri = tri.next
     end
@@ -346,9 +347,9 @@ function meta:CalcHesse()
     assert(p0 ~= p2, "tried to calculate hesse but p0 and p2 are the same")
     assert(p1 ~= p2, "tried to calculate hesse but p1 and p2 are the same")
 
-    print(p0)
-    print(p1)
-    print(p2)
+    --print(p0)
+    --print(p1)
+    --print(p2)
 
     self.hesse:CalcHesse(p0, p2, p1)
     self.hesse:Normalize()
@@ -361,6 +362,8 @@ function meta:CalcAreaSize()
     local p0 = self.edges[1].start_point.v
     local p1 = self.edges[1].next.start_point.v
     local p2 = self.edges[1].prev.start_point.v
+
+    --print(p0,p1,p2)
 
     norm:CalcHesse(p0, p2, p1)
     return norm:Length() * 0.5

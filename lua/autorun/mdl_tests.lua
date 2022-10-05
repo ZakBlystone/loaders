@@ -39,51 +39,78 @@ if CLIENT then
         q(Angle(0,0,-90))
     end
 
+    local ref = mdl.LoadModel("models/n7legion/fortnite/hybrid_player.mdl")
+    print("loaded reference ok")
+
+    local renderdata = ref:RenderBodyPart(ref:GetBodyPart(2), 0, {})
     local studiomdl = alchemy.Compiler("mdl")
 
-    local studio = studiomdl.New()
-    local model = studio:BodyPart():Model()
-    local msh = model:Mesh( "models/flesh" )
-    local stripgroup = msh:StripGroup()
-    local strip0 = stripgroup:Strip()
-    make_cube(strip0, 5, Vector(0,0,0))
-    make_cube(strip0, 3, Vector(0,0,20))
+    local studio = studiomdl.New("gtest7")
+    local rootbone = studio:Bone("rootbone")
+    --local model = studio:BodyPart():Model()
+    --local msh = model:Mesh( "models/flesh" )
+    --local stripgroup = msh:StripGroup()
+    --local strip0 = stripgroup:Strip()
 
-    local phys = studio:PhysBone()
+    print(#ref:GetBodyParts() .. " bodyparts")
+    for k, part in ipairs(ref:GetBodyParts()) do
+        --if k ~= 1 and k ~= 2 and k ~= 4 then continue end
+        --if k ~= 1 and k ~= 4 then continue end
+        print("BODYPART: " .. part.name)
+        local newPart = studio:BodyPart(part.name)
+        for _, model in ipairs(part.models) do
+            print(" -> MODEL: " .. model.name)
+            local newModel = newPart:Model(model.name)
+            for _, msh in ipairs(model.meshes) do
+                local renderdata = ref:RenderMesh(msh, 0, {})
+                local newMesh = newModel:Mesh( ref:GetMeshMaterial(msh, 0, true) )
+                local newStrip = newMesh:StripGroup():Strip()
+
+                local center = utils.compute_center(renderdata.vertices, "position")
+                for _, v in ipairs(renderdata.vertices) do
+                    newStrip:Vertex(v.position, v.normal, v.u, v.v, 
+                    v.tangent.x, v.tangent.y, v.tangent.z, v.tangent.w)
+                end
+                local indices = renderdata.indices
+                for i=1, #indices, 3 do
+                    newStrip:Triangle(indices[i], indices[i+1], indices[i+2])
+                end
+
+            end
+        end
+    end
+
+    --[[
+    local center = utils.compute_center(renderdata.vertices, "position")
+    for _, v in ipairs(renderdata.vertices) do
+        strip0:Vertex(v.position - center, v.normal, v.u, v.v, 
+        v.tangent.x, v.tangent.y, v.tangent.z, v.tangent.w)
+    end
+    local indices = renderdata.indices
+    for i=1, #indices, 3 do
+        strip0:Triangle(indices[i], indices[i+1], indices[i+2])
+    end]]
+
+    --make_cube(strip0, 10, Vector(0,0,0))
+    --make_cube(strip0, 10, Vector(0,0,40))
+
+    local phys = studio:PhysBone( rootbone )
     phys:SetSurfaceProp("bloodyflesh")
     phys:BuildFromEntireModel()
     studio:Write()
+    --studio:Mount("__gtest1")
 
     --local strip1 = stripgroup:Strip()
     --make_cube(strip1, 30, Vector(200,0,50))
 
-    if true then
-
-        local gma = alchemy.Compiler("gma")
-        gma.GMA_Write("modeltest",
-        {
-            ["models/generated.dx90.vtx"] = gma.GMA_DiskFile( "studio/vtx.dat" ),
-            ["models/generated.dx80.vtx"] = gma.GMA_DiskFile( "studio/vtx.dat" ),
-            ["models/generated.sw.vtx"] = gma.GMA_DiskFile( "studio/vtx.dat" ),
-            ["models/generated.mdl"] = gma.GMA_DiskFile( "studio/mdl.dat" ),
-            ["models/generated.vvd"] = gma.GMA_DiskFile( "studio/vvd.dat" ),
-            ["models/generated.phy"] = gma.GMA_DiskFile( "studio/phy.dat" ),
-        })
-
-        gma.GMA_Mount("modeltest")
-
-        --[[G_TEST_MODEL = nil
-        G_TEST_MODEL = G_TEST_MODEL or ents.CreateClientProp("models/generated.mdl")
-        G_TEST_MODEL:SetPos(Vector(0,0,100))
-        G_TEST_MODEL:Spawn()]]
-        --G_TEST_MODEL:Remove()
-
-    end
-
     hook.Add("PostDrawOpaqueRenderables", "test_studio", function()
     
-        if true then return end
-        model:Render()
+        local mtx = Matrix()
+        mtx:SetTranslation(Vector(70,0,0))
+        --if true then return end
+        cam.PushModelMatrix(mtx)
+        studio:Render()
+        cam.PopModelMatrix()
 
     end)
 
@@ -91,7 +118,7 @@ if CLIENT then
     
 
     local mdl_test = "models/Gibs/Fast_Zombie_Legs.mdl"
-    --mdl_test = "models/Gibs/HGIBS.mdl"
+    mdl_test = "models/Gibs/HGIBS.mdl"
     --mdl_test = "models/Lamarr.mdl"
     --mdl_test = "models/vortigaunt.mdl"
     --mdl_test = "models/crow.mdl"
@@ -115,6 +142,8 @@ if CLIENT then
     --mdl_test = "models/props_lab/Cleaver.mdl"
     --mdl_test = "models/magnusson_device.mdl"
     --mdl_test = "models/antlion_worker.mdl"
+    --mdl_test = "models/props_lab/kennel_physics.mdl"
+    --mdl_test = "models/props_junk/TrashDumpster02.mdl"
 
     --mdl_test = "models/props_lab/binderblue.mdl"
     --mdl_test = "models/maxofs2d/companion_doll.mdl"
@@ -145,7 +174,7 @@ if CLIENT then
         --utils.print_table(loaded.bodyparts[1].models[1].meshes[1].flexes, "model", {}, -1, 5)
         --if loaded.hdr2 then PrintTable(loaded.hdr2) end
 
-        --utils.print_table(loaded.bones)
+        --utils.print_table(loaded.bodyparts, "", {"vertices", "indices"})
         --PrintTable(loaded.bones)
         --PrintTable(loaded.hitbox_sets)
         --print("ANIMS")
@@ -153,27 +182,40 @@ if CLIENT then
         --print("SEQUENCES")
         --PrintTable(loaded.local_sequences)
         --print(loaded.name)
-        utils.print_table(loaded, "", {"vertices", "indices"}, -1, 20)
+        utils.print_table(loaded.bodyparts, "", {"vertices", "indices"}, -1, 20)
     end
 
     --PrintTable(loaded.vvd.vertices)
     --PrintTable(loaded.vtx.materialReplacementList)
 
-    --utils.print_table(loaded.phy)
+    --utils.print_table(loaded.phy.data, "", {}, 4)
     
     hook.Add("PostDrawOpaqueRenderables", "test_mdl", function()
     
-        if true then return end
-        if loaded then
-            loaded:Render()
-            if loaded.phy then
-                mdl.DrawVCollide( loaded.phy )
-            else
-                print("no phy")
+        --if true then return end
+        if not loaded then return end
+        --loaded:Render()
+        if loaded.phy and false then
+            --mdl.DrawVCollide( loaded.phy )
+            local solids = loaded.phy.solids
+            for k, solid in ipairs(solids) do
+                local bone = loaded:FindBone( solid.data.name )
+                if bone then
+                    cam.PushModelMatrix(bone.invPoseToBone)
+                    solid:Render(k)
+                    cam.PopModelMatrix()
+                else
+                    solid:Render(k)
+                end
+                --print(solid.data.name)
+                --utils.print_table(solid.data)
             end
+        else
+            --print("no phy: " .. CurTime())
         end
-        --local parts = loaded:GetBodyParts()
-        --loaded:RenderModel( parts[1].models[1] )
+
+        local parts = loaded:GetBodyParts()
+        loaded:RenderModel( parts[8].models[2] )
     
     end)
     

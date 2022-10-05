@@ -73,15 +73,28 @@ local function addToPoints(v, point_hash, newpoints)
     newpoints[#newpoints+1] = v
 end
 
+local function ReduceToUniquePoints( points )
+
+    local hash = {}
+    local out = {}
+    for _, p in ipairs(points) do
+        local h = qhash(p)
+        if hash[h] then continue end
+        out[#out+1] = p
+        hash[h] = true
+    end
+    return out
+
+end
+
 function BuildLedgeFromPoints( points )
 
-    local cpoints = {}
-    for i, p in ipairs(points) do
-        cpoints[i] = Pos2PHY(p)
+    points = ReduceToUniquePoints(points)
+    for k, p in ipairs(points) do
+        points[k] = Pos2PHY(p)
     end
 
     local qh = quickHull.new(points) qh:build()
-    local tris = qh:collectFaces( false )
     local verts = qh.vertices
     local newpoints = {}
     local point_hash = {}
@@ -93,12 +106,12 @@ function BuildLedgeFromPoints( points )
         local face = qh.faces[i]
         local indices = face:collectIndices()
         for j=#indices, 1, -1 do
-            local p = Pos2PHY(verts[ indices[j] ].point)
+            local p = verts[ indices[j] ].point
             addToPoints( p, point_hash, newpoints )
             ppoints[#ppoints+1] = p
         end
 
-        local ps_plane = ivp.PS_Plane( Dir2PHY(face.normal * -1), ppoints )
+        local ps_plane = ivp.PS_Plane( face.normal * -1, ppoints )
         ps_plane:Validate()
         ps_planes[#ps_planes+1] = ps_plane
 
@@ -114,8 +127,8 @@ function BuildLedgeFromPoints( points )
             local v0 = plane.points[(i%n)+1]
             local v1 = plane.points[((i+1)%n)+1]
             debugoverlay.Line(
-                Pos2HL(v0) - normal * 2, 
-                Pos2HL(v1) - normal * 2, 30, c, true )
+                Pos2HL(v0) - normal * 0.2, 
+                Pos2HL(v1) - normal * 0.2, 30, c, true )
 
         end
     end

@@ -43,6 +43,7 @@ local File = FindMetaTable("File")
 local m_file = nil
 local m_stack = nil
 local m_names = nil
+local m_deferred_arrays = {}
 local WriteUShort = File.WriteUShort
 local WriteShort = File.WriteShort
 local WriteULong = File.WriteULong
@@ -58,6 +59,7 @@ function open_data( filename, path )
 
     local f = file.Open(filename, "wb", path or "DATA")
     m_stack, m_names, m_file = {}, {}, f
+    m_deferred_arrays = {}
     return f ~= nil
 
 end
@@ -67,6 +69,7 @@ function end_data()
     if not m_file then return end
     m_file:Close()
     m_file = nil
+    m_deferred_arrays = nil
 
 end
 
@@ -210,6 +213,39 @@ function indirect_array( dtype, v, flipped )
 
 end
 
+function defer_indirect_array( tbl, base, field, aux )
+
+    m_deferred_arrays[#m_deferred_arrays+1] = {
+        tbl = tbl,
+        base = base,
+        field = field,
+        aux = aux,
+    }
+
+end
+
+function write_deferred_arrays()
+
+    local passes = 0
+    while #m_deferred_arrays > 0 do
+
+        passes = passes + 1
+        local copy = {}
+        for _, arr in ipairs(m_deferred_arrays) do
+            copy[#copy+1] = arr
+        end
+        m_deferred_arrays = {}
+
+        for _, arr in ipairs(copy) do
+            align4()
+            write_indirect_array(arr.tbl, arr.base, arr.field, arr.aux)
+        end
+
+    end
+    print("Write deferred arrays in " .. passes .. " passes.")
+
+end
+
 function write_indirect_array( tbl, base, field, aux, ... )
 
     local field_is_aux = type(field) == "table"
@@ -220,7 +256,7 @@ function write_indirect_array( tbl, base, field, aux, ... )
     local dtype = arr.dtype
 
     if num == 0 then
-        print("WRITE ZERO ARRAY AT: " .. arr.offset)
+        --print("WRITE ZERO ARRAY AT: " .. arr.offset)
         push_data( arr.offset )
         uint32( 0 )
         pop_data()
@@ -302,7 +338,7 @@ function align4()
 
     if w == 4 then return end
 
-    print("----- ALIGN: " .. p .. " : " .. w)
+    --print("----- ALIGN: " .. p .. " : " .. w)
 
     Write(m_file, str_rep('\xCD', w))
 
