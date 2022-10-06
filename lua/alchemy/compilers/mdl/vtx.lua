@@ -35,7 +35,7 @@ SOFTWARE.
 AddCSLuaFile()
 local __lib = alchemy.MakeLib({
     using = {
-        include("alchemy/common/datawriter.lua"),
+        include("../../common/datawriter.lua"),
     },
 })
 

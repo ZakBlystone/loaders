@@ -35,7 +35,7 @@ SOFTWARE.
 AddCSLuaFile()
 local __lib = alchemy.MakeLib({
     using = {
-        include("alchemy/common/datareader.lua"),
+        include("../../common/datareader.lua"),
     },
 })
 
