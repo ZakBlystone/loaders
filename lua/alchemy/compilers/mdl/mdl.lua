@@ -293,8 +293,8 @@ local function mdl_mesh(v)
         ptr = base,
         material = int32(v.materialidx),
         modelindex = int32(0),
-        numvertices = int32(v.numvertices), -- cache
-        vertexoffset = int32(0), -- cache
+        numvertices = int32(v.numvertices),
+        vertexoffset = int32(v.vertexoffset),
         flexes = indirect_array( mdl_flex, v.flexes ),
         materialtype = int32(0), -- figure out
         materialparam = int32(0), -- figure out
@@ -534,7 +534,7 @@ local function mdl_header(v)
 
     write_deferred_arrays()
 
-    print_table( header.bodyparts, "", {}, 3 )
+    --print_table( header.bodyparts, "", {}, 3 )
 
     for k, bodypart in ipairs( header.bodyparts ) do
         for l, model in ipairs( bodypart.models ) do
@@ -620,7 +620,7 @@ local function mdl_header(v)
     int32(length)
     pop_data()
 
-    alchemy.utils.print_table(header.textures)
+    --alchemy.utils.print_table(header.textures)
 
 end
 

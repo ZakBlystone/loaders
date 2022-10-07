@@ -111,9 +111,10 @@ function m_strip:Vertex( position, normal, u, v, tx, ty, tz, tw, weights )
 
     local vertices = self.group.mesh.model.part.studio.vertices
     local tangents = self.group.mesh.model.part.studio.tangents
+    self.group.mesh.model.part.studio.verticesneedoffsets = true
 
     self.group.vertices[#self.group.vertices+1] = {
-        origMeshVertID = self.group.mesh.model.numvertices,
+        origMeshVertID = self.group.mesh.numvertices,
         numBones = 1,
         boneWeightIndex = {0,1,2},
         boneID = {0,0,0},
@@ -169,6 +170,7 @@ function m_strip:Render()
     local vverts = self.group.vertices
     local vertices = self.group.mesh.model.part.studio.vertices
     local tangents = self.group.mesh.model.part.studio.tangents
+    local vert_offset = self.group.mesh.vertexoffset + self.group.mesh.model.vertexindex / vvd_vertex_size
 
     assert(vertices and tangents)
 
@@ -185,9 +187,9 @@ function m_strip:Render()
             local i1 = indices[i+1] + 1
             local i2 = indices[i+2] + 1
 
-            local v0 = vertices[vverts[i0].origMeshVertID+1]
-            local v1 = vertices[vverts[i1].origMeshVertID+1]
-            local v2 = vertices[vverts[i2].origMeshVertID+1]
+            local v0 = vertices[vverts[i0].origMeshVertID+1+vert_offset]
+            local v1 = vertices[vverts[i1].origMeshVertID+1+vert_offset]
+            local v2 = vertices[vverts[i2].origMeshVertID+1+vert_offset]
 
             if v0 and v1 and v2 then
 
@@ -273,6 +275,7 @@ function m_mesh:Init( matid, material )
     self.materialidx = 0
     self.meshid = 0
     self.numvertices = 0
+    self.vertexoffset = 0
     self.bbmins = Vector(math.huge, math.huge, math.huge)
     self.bbmaxs = Vector(-math.huge, -math.huge, -math.huge)
     return self
@@ -545,6 +548,7 @@ function m_studio:Init(name)
     self.bones = {}
     self.bonecontrollers = {}
     self.bodyparts = {}
+    self.bodypartorder = {}
     self.hitboxsets = {}
     self.localanims = {}
     self.localsequences = {}
@@ -576,6 +580,7 @@ function m_studio:Init(name)
     self.hitboxsets_byname = {}
     self.materials = {}
     self.physbones = {}
+    self.verticesneedoffsets = true
 
     return self
 
@@ -583,6 +588,7 @@ end
 
 function m_studio:Render()
 
+    self:ComputeVertexOffsets()
     for _, part in ipairs(self.bodyparts) do
         part:Render()
     end
@@ -692,16 +698,42 @@ function m_studio:BodyPart( name )
 
 end
 
+function m_studio:ComputeVertexOffsets()
+
+    if not self.verticesneedoffsets then return end
+
+    local total_verts = 0
+    for _, part in ipairs( self.bodyparts ) do
+        for _, model in ipairs(part.models) do
+            model.vertexindex = total_verts * vvd_vertex_size
+            model.tangentsindex = total_verts * vvd_tangent_size
+
+            local mesh_offset = 0
+            for k, mesh in ipairs(model.meshes) do
+                mesh.vertexoffset = mesh_offset
+                mesh_offset = mesh_offset + mesh.numvertices
+            end
+            total_verts = total_verts + model.numvertices
+        end
+    end
+
+    self.verticesneedoffsets = false
+
+end
+
 function m_studio:AssignMeshIDs()
 
-    table.sort(self.bodyparts, function(a,b)
-        return #a.models < #b.models
+    self.bodypartorder = {}
+    for i=1, #self.bodyparts do self.bodypartorder[i] = i end
+
+    table.sort(self.bodypartorder, function(a,b)
+        return #self.bodyparts[a].models < #self.bodyparts[b].models
     end)
 
     local num = 0
     local base = 1
-    local total_verts = 0
-    for _, part in ipairs( self.bodyparts ) do
+    for _, idx in ipairs( self.bodypartorder ) do
+        local part = self.bodyparts[idx]
         part.base = base
         base = base * #part.models
         --if #part.models > 1 then base = base * 2 end
@@ -710,10 +742,6 @@ function m_studio:AssignMeshIDs()
                 mesh.meshid = num
                 num = num + 1
             end
-
-            model.vertexindex = total_verts * vvd_vertex_size
-            model.tangentsindex = total_verts * vvd_tangent_size
-            total_verts = total_verts + model.numvertices
         end
     end
 
@@ -784,6 +812,7 @@ end
 
 function m_studio:Write( filename )
 
+    self:ComputeVertexOffsets()
     self:AssignMeshIDs()
     self:ComputeBounds()
     self:EnsureHitBoxes()

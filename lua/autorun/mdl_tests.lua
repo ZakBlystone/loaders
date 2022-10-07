@@ -39,7 +39,7 @@ if CLIENT then
         q(Angle(0,0,-90))
     end
 
-    local refmodel = "models/Police.mdl"
+    local refmodel = "models/n7legion/fortnite/hybrid_player.mdl" --"models/Police.mdl"
     local ref = mdl.LoadModel(refmodel)
     print("loaded reference ok")
 
@@ -54,6 +54,10 @@ if CLIENT then
     local strip = stripgroup:Strip()
     make_cube(strip, 15, Vector(0,0,0))
 
+    local stripgroup = msh:StripGroup()
+    local strip = stripgroup:Strip()
+    make_cube(strip, 15, Vector(40,0,0))
+
     local bp1 = studio:BodyPart()
 
     bp1:Model()
@@ -62,11 +66,16 @@ if CLIENT then
     local msh = model:Mesh( "models/props_wasteland/wood_fence01a" )
     local stripgroup = msh:StripGroup()
     local strip = stripgroup:Strip()
-    make_cube(strip, 15, Vector(0,0,40))]]
+    make_cube(strip, 15, Vector(0,0,40))
+
+    local msh = model:Mesh( "phoenix_storms/metalfloor_2-3" )
+    local stripgroup = msh:StripGroup()
+    local strip = stripgroup:Strip()
+    make_cube(strip, 15, Vector(0,0,80))]]
     
     for k, part in ipairs(ref:GetBodyParts()) do
         --if k ~= 1 and k ~= 2 and k ~= 4 then continue end
-        --if k ~= 3 then continue end
+        --if k ~= 1 and k ~= 2 and k ~= 3 and k ~= 4 then print("SKIP: [" .. k .. "]: " .. part.name) continue end
         local newPart = studio:BodyPart(part.name)
         for i=1, #part.models do
             local model = part.models[i]
@@ -134,7 +143,7 @@ if CLIENT then
     --mdl_test = "models/dog.mdl"
     --mdl_test = "models/Zombie/Classic_legs.mdl"
     --mdl_test = "models/raptor/aeon_enhanced/aeon.mdl"
-    --mdl_test = "models/n7legion/fortnite/hybrid_player.mdl"
+    mdl_test = "models/n7legion/fortnite/hybrid_player.mdl"
     --mdl_test = "models/player/LeymiRBA/GrifGrif.mdl" --[this one breaks...]
     --mdl_test = "models/Gibs/Fast_Zombie_Torso.mdl"
     --mdl_test = "models/Combine_Strider.mdl"
@@ -186,7 +195,7 @@ if CLIENT then
         --print("SEQUENCES")
         --PrintTable(loaded.local_sequences)
         --print(loaded.name)
-        utils.print_table(loaded.bodyparts[2], "", {}, -1, 20)
+        --utils.print_table(loaded.bodyparts, "", {"vertices"}, -1, 20)
     end
 
     --PrintTable(loaded.vvd.vertices)
@@ -196,7 +205,7 @@ if CLIENT then
     
     hook.Add("PostDrawOpaqueRenderables", "test_mdl", function()
     
-        --if true then return end
+        if true then return end
         if not loaded then return end
         loaded:Render()
         if loaded.phy and false then
