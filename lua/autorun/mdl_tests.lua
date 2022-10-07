@@ -39,12 +39,13 @@ if CLIENT then
         q(Angle(0,0,-90))
     end
 
-    local ref = mdl.LoadModel("models/Police.mdl")
+    local refmodel = "models/Police.mdl"
+    local ref = mdl.LoadModel(refmodel)
     print("loaded reference ok")
 
     local studiomdl = alchemy.Compiler("mdl")
 
-    local studio = studiomdl.New("modeltests/gtest1")
+    local studio = studiomdl.New("modeltests/gtest5")
     local rootbone = studio:Bone("rootbone")
 
     --[[local model = studio:BodyPart():Model()
@@ -54,23 +55,21 @@ if CLIENT then
     make_cube(strip, 15, Vector(0,0,0))
 
     local bp1 = studio:BodyPart()
+
+    bp1:Model()
+
     local model = bp1:Model()
     local msh = model:Mesh( "models/props_wasteland/wood_fence01a" )
     local stripgroup = msh:StripGroup()
     local strip = stripgroup:Strip()
-    make_cube(strip, 15, Vector(0,0,40))
-
-    bp1:Model()]]
-
-    -- Current failure case:
-    -- Spawning this model will work, can shoot and it makes decals (sometimes)
-    -- Enable the 'manhack' submodel and shoot it, and the game crashes
+    make_cube(strip, 15, Vector(0,0,40))]]
     
     for k, part in ipairs(ref:GetBodyParts()) do
         --if k ~= 1 and k ~= 2 and k ~= 4 then continue end
         --if k ~= 3 then continue end
         local newPart = studio:BodyPart(part.name)
-        for _, model in ipairs(part.models) do
+        for i=1, #part.models do
+            local model = part.models[i]
             local newModel = newPart:Model(model.name)
             for k, msh in ipairs(model.meshes) do
                 local renderdata = ref:RenderMesh(msh, 0, {})
@@ -151,6 +150,8 @@ if CLIENT then
     --mdl_test = "models/props_lab/binderblue.mdl"
     --mdl_test = "models/maxofs2d/companion_doll.mdl"
     --mdl_test = "models/props_phx/construct/metal_plate1.mdl"
+    --mdl_test = "models/props_c17/TrapPropeller_Blade.mdl"
+    --mdl_test = "models/props_doors/door03_slotted_left.mdl"
     mdl_test = "studio/mdl.dat"
 
     print("LOADING: " .. tostring(mdl_test))
@@ -185,7 +186,7 @@ if CLIENT then
         --print("SEQUENCES")
         --PrintTable(loaded.local_sequences)
         --print(loaded.name)
-        --utils.print_table(loaded.bodyparts, "", {"indices", "vertices", "flexes"}, -1, 20)
+        utils.print_table(loaded.bodyparts[2], "", {}, -1, 20)
     end
 
     --PrintTable(loaded.vvd.vertices)

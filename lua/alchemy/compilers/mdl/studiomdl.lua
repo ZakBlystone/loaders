@@ -113,19 +113,21 @@ function m_strip:Vertex( position, normal, u, v, tx, ty, tz, tw, weights )
     local tangents = self.group.mesh.model.part.studio.tangents
 
     self.group.vertices[#self.group.vertices+1] = {
-        origMeshVertID = #vertices,
+        origMeshVertID = self.group.mesh.model.numvertices,
         numBones = 1,
         boneWeightIndex = {0,1,2},
         boneID = {0,0,0},
     }
 
+    self.group.mesh.model.numvertices = self.group.mesh.model.numvertices + 1
+
     vmin_into(position, self.bbmins)
     vmax_into(position, self.bbmaxs)
     vmin_into(position, self.group.mesh.bbmins)
     vmax_into(position, self.group.mesh.bbmaxs)
-    self.group.mesh.model.numvertices = self.group.mesh.model.numvertices + 1
     self.group.mesh.numvertices = self.group.mesh.numvertices + 1
     self.numVerts = self.numVerts + 1
+
 
     local vertex = {
         position = position,
@@ -305,6 +307,8 @@ function m_model:Init( name )
     self.name = name
     self.radius = 0
     self.numvertices = 0
+    self.vertexindex = 0
+    self.tangentsindex = 0
     return self
 
 end
@@ -696,6 +700,7 @@ function m_studio:AssignMeshIDs()
 
     local num = 0
     local base = 1
+    local total_verts = 0
     for _, part in ipairs( self.bodyparts ) do
         part.base = base
         base = base * #part.models
@@ -705,6 +710,10 @@ function m_studio:AssignMeshIDs()
                 mesh.meshid = num
                 num = num + 1
             end
+
+            model.vertexindex = total_verts * vvd_vertex_size
+            model.tangentsindex = total_verts * vvd_tangent_size
+            total_verts = total_verts + model.numvertices
         end
     end
 

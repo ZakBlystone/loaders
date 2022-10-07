@@ -45,6 +45,10 @@ MAX_NUM_LODS = 8
 VVD_VERSION = 4
 VVD_IDENT = "IDSV"
 
+vvd_boneweight_size = 5 * MAX_NUM_BONES_PER_VERT + 1
+vvd_vertex_size = vvd_boneweight_size + 24 + 8
+vvd_tangent_size = 16
+
 local default_weight = { {0, 1}, {0, 0}, {0, 0}, num = 1 }
 
 local function vvd_boneweight(v)

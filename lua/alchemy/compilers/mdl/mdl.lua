@@ -332,9 +332,9 @@ local function mdl_model(v)
         type = int32(0), -- figure out
         boundingradius = float32(0), -- figure out
         meshes = indirect_array( mdl_mesh, v.meshes ),
-        numvertices = int32(v.numvertices), -- cache
-        vertexindex = int32(0), -- cache
-        tangentsindex = int32(0), -- cache
+        numvertices = int32(v.numvertices),
+        vertexindex = int32(v.vertexindex),
+        tangentsindex = int32(v.tangentsindex),
         numattachments = int32(0), -- figure out
         attachmentindex = int32(0), -- figure out
         eyeballs = indirect_array( mdl_eyeball, v.eyeballs ),

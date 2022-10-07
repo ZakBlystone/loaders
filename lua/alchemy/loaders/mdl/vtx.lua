@@ -55,6 +55,23 @@ __mdl_version = 0
 
 function vtx_get_coverage_vis() return get_coverage_vis() end
 
+local meta_vtx_vertx = {}
+meta_vtx_vertx.__index = meta_vtx_vertx
+
+function meta_vtx_vertx:__tostring()
+
+    return string.format("v:%i, bn:%i, b:[%i,%i,%i], w:[%i,%i,%i]",
+    self.origMeshVertID,
+    self.numBones,
+    self.boneID[1],
+    self.boneID[2],
+    self.boneID[3],
+    self.boneWeightIndex[1],
+    self.boneWeightIndex[2],
+    self.boneWeightIndex[3])
+
+end
+
 local function vtx_bonestatechange()
 
     return {
@@ -66,12 +83,12 @@ end
 
 local function vtx_vertex()
 
-    return {
+    return setmetatable({
         boneWeightIndex = array_of(uint8, 3),
         numBones = uint8(),
         origMeshVertID = uint16(),
         boneID = array_of(int8, 3),
-    }
+    }, meta_vtx_vertx)
 
 end
 
@@ -128,11 +145,11 @@ local function vtx_stripgroup()
     local vertices = group.vertices
     local indices = group.indices
 
-    for i=1, #indices do
+    --[[for i=1, #indices do
         local idx = indices[i]
         local vidx = vertices[idx+1].origMeshVertID+1
         indices[i] = vidx
-    end
+    end]]
 
     if __mdl_version >= 49 then
         uint32()

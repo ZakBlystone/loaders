@@ -1238,11 +1238,12 @@ local function AppendTri(v0,v1,v2)
 
 end
 
-function mdl_meta:RenderStrip( group, strip, output )
+function mdl_meta:RenderStrip( msh, group, strip, output )
 
     if not strip then return end
 
     local vertices = self:GetVertices()
+    local vert_offset = msh.vertexoffset + msh.model.vertexindex / vvd_vertex_size
 
     if output then
         output.vertices = output.vertices or {}
@@ -1253,7 +1254,7 @@ function mdl_meta:RenderStrip( group, strip, output )
         local indices = output.indices
         local out_vertices = output.vertices
         for i=1, strip.numIndices do
-            local idx = group.indices[i]
+            local idx = group.vertices[group.indices[i+strip.indexOffset]+1].origMeshVertID+1+vert_offset
             if not hash[idx] then
                 out_vertices[#out_vertices+1] = vertices[idx]
                 hash[idx] = #out_vertices
@@ -1272,9 +1273,9 @@ function mdl_meta:RenderStrip( group, strip, output )
 
         for j=1, sec do
 
-            local i0 = group.indices[i]
-            local i1 = group.indices[i+1]
-            local i2 = group.indices[i+2]
+            local i0 = group.vertices[group.indices[i]+1].origMeshVertID+1+vert_offset
+            local i1 = group.vertices[group.indices[i+1]+1].origMeshVertID+1+vert_offset
+            local i2 = group.vertices[group.indices[i+2]+1].origMeshVertID+1+vert_offset
 
             local v0 = vertices[i0]
             local v1 = vertices[i1]
@@ -1293,10 +1294,10 @@ function mdl_meta:RenderStrip( group, strip, output )
 
 end
 
-function mdl_meta:RenderStripGroup( group, output )
+function mdl_meta:RenderStripGroup( msh, group, output )
 
     for i=1, #group.strips do
-        self:RenderStrip( group, group.strips[i], output )
+        self:RenderStrip( msh, group, group.strips[i], output )
     end
     return output
 
@@ -1311,7 +1312,7 @@ function mdl_meta:RenderMesh( msh, skin, output )
 
     for _, group in ipairs(msh.stripgroups) do
 
-        self:RenderStripGroup( group, output )
+        self:RenderStripGroup( msh, group, output )
 
     end
     return output
@@ -1515,17 +1516,17 @@ local function LoadBundle( filename, path )
             for k=1, #mdl.bodyparts[i].models[j].meshes do
                 local mdl_mesh = mdl_model.meshes[k]
                 local vtx_mesh = mdl.vtx.bodyParts[i].models[j].lods[1].meshes[k]
-                for x,y in pairs(vtx_mesh) do
-                    mdl_mesh[x] = y
-                end
-                local index_offset = mdl_mesh.vertexoffset + mdl_model.vertexindex / vvd_vertex_size
+                mdl_mesh.stripgroups = vtx_mesh.stripgroups
+                mdl_mesh.flags = vtx_mesh.flags
+                mdl_mesh.model = mdl_model
+                --[[local index_offset = mdl_mesh.vertexoffset + mdl_model.vertexindex / vvd_vertex_size
                 for l=1, #vtx_mesh.stripgroups do
                     local stripgroup = vtx_mesh.stripgroups[l]
                     local indices = stripgroup.indices
                     for m=1, #indices do
                         indices[m] = indices[m] + index_offset
                     end
-                end
+                end]]
 
                 -- convert flexes
                 --[[for l=1, #mdl_mesh.flexes do
