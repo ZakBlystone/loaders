@@ -187,15 +187,19 @@ function m_strip:Render()
             local i1 = indices[i+1] + 1
             local i2 = indices[i+2] + 1
 
-            local v0 = vertices[vverts[i0].origMeshVertID+1+vert_offset]
-            local v1 = vertices[vverts[i1].origMeshVertID+1+vert_offset]
-            local v2 = vertices[vverts[i2].origMeshVertID+1+vert_offset]
+            local ii0 = vverts[i0].origMeshVertID+1+vert_offset
+            local ii1 = vverts[i1].origMeshVertID+1+vert_offset
+            local ii2 = vverts[i2].origMeshVertID+1+vert_offset
+
+            local v0 = vertices[ii0]
+            local v1 = vertices[ii1]
+            local v2 = vertices[ii2]
 
             if v0 and v1 and v2 then
 
-                local t0 = tangents[i0]
-                local t1 = tangents[i1]
-                local t2 = tangents[i2]
+                local t0 = tangents[ii0]
+                local t1 = tangents[ii1]
+                local t2 = tangents[ii2]
     
                 mesh.Position(v0.position)
                 mesh.Normal(v0.normal)
