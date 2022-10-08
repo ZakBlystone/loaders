@@ -1358,6 +1358,32 @@ function mdl_meta:Render(skin, output)
 
 end
 
+function mdl_meta:RenderBones(base)
+
+    base = base or self.bones[1]
+    
+    local pos = base.invPoseToBone:GetTranslation()
+    local ang = base.invPoseToBone:GetAngles()
+    local facing = EyeAngles()
+    facing:RotateAroundAxis(facing:Right(),90)
+    facing:RotateAroundAxis(facing:Up(),-90)
+
+    cam.Start3D2D( pos, facing, 0.05 )
+    draw.SimpleText(base.name or "bone", "DermaDefault", 0, 0, Color(255,255,255))
+    cam.End3D2D()
+
+    for i=1, #base.children do
+        local child = base.children[i]
+        render.DrawLine( pos, child.invPoseToBone:GetTranslation(), Color(0,255,255))
+        self:RenderBones(child)
+
+        render.DrawLine( pos, pos + ang:Forward() * 4, Color(255,0,0) )
+        render.DrawLine( pos, pos + ang:Right() * 4, Color(0,255,0) )
+        render.DrawLine( pos, pos + ang:Up() * 4, Color(0,0,255) )
+    end
+
+end
+
 local function LoadMDL( filename, path )
 
     open_data(filename, path)
@@ -1407,8 +1433,17 @@ local function LoadMDL( filename, path )
     end
 
     header.bonesbyname = {}
-    for _, bone in ipairs(header.bones) do
+    for i, bone in ipairs(header.bones) do
         header.bonesbyname[bone.name] = bone
+        bone.children = {}
+        bone.id = i-1
+    end
+
+    for _, bone in ipairs(header.bones) do
+        local pbone = header.bones[ bone.parent+1 ]
+        if pbone then
+            pbone.children[#pbone.children+1] = bone
+        end
     end
 
     --PrintTable(header.bones)
