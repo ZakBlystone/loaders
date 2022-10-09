@@ -320,6 +320,8 @@ function meta:CalcLineRepresentation()
 		local start_point_num = line[ reverse + 1 ]
 		local end_point_num = line[ (1-reverse) + 1 ]
 
+		assert(start_point_num ~= end_point_num, "Line start and end on same index: " .. start_point_num)
+
 		local start_point = points[start_point_num]
 		if start_point == nil then
 			start_point = P_Sur_2D_Point(start_point_num)
@@ -345,6 +347,12 @@ function meta:CalcLineRepresentation()
 
 		self.first_line = ll_insert(self.first_line, td_line)
 
+	end
+
+	local ph = {}
+	for _, p in ipairs(points) do
+		assert(not ph[p], "Point is being duplicated")
+		ph[p] = true
 	end
 
 end
@@ -405,7 +413,6 @@ function meta:CalcTriangleRepresentation()
 			td_point_line = td_point_line.next
 		end
 		table.sort(td_lines, function(a,b) return a[2] < b[2] end)
-		
 
 		while #td_lines > 0 do
 			td_point_line = td_lines[1][1]
@@ -413,6 +420,7 @@ function meta:CalcTriangleRepresentation()
 
 			if td_point_line == td_base_line then continue end
 			if td_point_line.start_point == td_base_line.end_point then continue end
+			if td_point_line.start_point == td_base_line.start_point then continue end
 			--print("Trying point " .. td_point_line.start_point.point_num)
 
 			local point_c = td_point_line.start_point
