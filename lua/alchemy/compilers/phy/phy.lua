@@ -61,13 +61,8 @@ include("ivp/surbuild_polygon_convex.lua")
 include("ivp/templates.lua")
 include("ivp/triangle_gen.lua")
 
-local function qhash(p)
-    local x,y,z = p:Unpack()
-    return string.format("%0.4f_%0.4f_%0.4f", x,y,z)
-end
-
 local function addToPoints(v, point_hash, newpoints)
-    local h = qhash(v)
+    local h = utils.hash_vec(v)
     if point_hash[h] then return end
     point_hash[h] = true
     newpoints[#newpoints+1] = v
@@ -78,7 +73,7 @@ local function ReduceToUniquePoints( points )
     local hash = {}
     local out = {}
     for _, p in ipairs(points) do
-        local h = qhash(p)
+        local h = utils.hash_vec(p)
         if hash[h] then continue end
         out[#out+1] = p
         hash[h] = true

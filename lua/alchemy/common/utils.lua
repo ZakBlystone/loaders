@@ -239,4 +239,75 @@ function new_guid()
 
 end
 
+local rshift = bit.rshift
+local frexp, ldexp, floor, abs = math.frexp, math.ldexp, math.floor, math.abs
+local strchar = string.char
+function hash_float(v)
+
+    local fr,exp = frexp(abs(v))
+    fr = floor(ldexp(fr, 24))
+    exp = exp + 126
+    if v == 0.0 then fr,exp = 0,0 end
+    return strchar(fr%256, rshift(fr,8)%256, (exp%2)*128+rshift(fr,16)%128, (v<0 and 128 or 0)+rshift(exp,1))
+
+end
+
+local __vmeta = FindMetaTable("Vector")
+local __vunpack = __vmeta.Unpack
+local __vpack = __vmeta.SetUnpacked
+function hash_vec(v)
+
+    local x,y,z = __vunpack(v)
+    local frx,expx = frexp(abs(x)) expx,frx = expx + 126, floor(ldexp(frx, 24))
+    local fry,expy = frexp(abs(y)) expy,fry = expy + 126, floor(ldexp(fry, 24))
+    local frz,expz = frexp(abs(z)) expz,frz = expz + 126, floor(ldexp(frz, 24))
+    if x == 0.0 then frx,expx = 0,0 end
+    if y == 0.0 then fry,expy = 0,0 end
+    if z == 0.0 then frz,expz = 0,0 end
+    return strchar(
+        frx%256, rshift(frx,8)%256, (expx%2)*128+rshift(frx,16)%128, (x<0 and 128 or 0)+rshift(expx,1),
+        fry%256, rshift(fry,8)%256, (expy%2)*128+rshift(fry,16)%128, (y<0 and 128 or 0)+rshift(expy,1),
+        frz%256, rshift(frz,8)%256, (expz%2)*128+rshift(frz,16)%128, (z<0 and 128 or 0)+rshift(expz,1)
+    )
+
+end
+
+-- truncate double to float
+function snap_float(f)
+
+    local fr,exp = frexp(abs(f))
+    local s = f<0 and -1 or 1
+    local sn = floor(ldexp(fr, 24))
+    local k = ldexp(ldexp(sn, -23) * s, exp-1)
+    return k
+
+end
+
+function round_float(f)
+
+    local fr,exp = frexp(abs(f))
+    local s = f<0 and -1 or 1
+    local sn = floor(ldexp(fr, 24))
+    local k = ldexp(ldexp(sn, -23) * s, exp-1)
+    local k1 = ldexp(ldexp(sn+1, -23) * s, exp-1)
+    local d0 = abs(f-k)
+    local d1 = abs(f-k1)
+    if d0 < d1 then return k else return k1 end
+
+end
+
+function snap_vec(v)
+
+    local x,y,z = __vunpack(v)
+    local a = x*x+y*y+z*z
+    x = snap_float(x)
+    y = snap_float(y)
+    z = snap_float(z)
+    local b = x*x+y*y+z*z
+    print(b-a)
+    __vpack(v,x,y,z)
+    return v
+
+end
+
 return __lib

@@ -27,6 +27,8 @@ SOFTWARE.
 
 module("ivp", package.seeall)
 
+local utils = include("../../../common/utils.lua")
+
 local meta = {}
 meta.__index = meta
 
@@ -44,14 +46,14 @@ end
 
 function meta:AddPoint(point)
     self.points[#self.points+1] = point
-    self.hash[qhash(point.v or point)] = #self.points
+    self.hash[utils.hash_vec(point.v or point)] = #self.points
 end
 
 function meta:PointToIndex(point)
     --[[for k, p in ipairs(self.points) do
         if self.compare(p, point) then return k end
     end]]
-    return self.hash[qhash(point.v or point)] or -1
+    return self.hash[utils.hash_vec(point.v or point)] or -1
     --return -1
 end
 
