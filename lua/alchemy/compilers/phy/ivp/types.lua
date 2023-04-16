@@ -25,6 +25,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ]]
 
+AddCSLuaFile()
+
 module("ivp", package.seeall)
 
 IVP_Size_Compact_Ledge = 16

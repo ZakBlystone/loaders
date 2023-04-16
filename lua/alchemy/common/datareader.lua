@@ -25,13 +25,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ]]
 
-AddCSLuaFile()
-local __lib = alchemy.MakeLib({
-    using = {
-        include("qmath.lua"),
-    }
-})
-
+local qmath = alchemy.qmath
+local quat_meta = qmath.quat_meta
 local str_byte = string.byte
 local str_sub = string.sub
 local str_find = string.find
@@ -502,5 +497,3 @@ end
 function str_int32(x)
     return str_char( band(x,0xFF), band(rshift(x, 8),0xFF), band(rshift(x, 16),0xFF), rshift(x, 24) )
 end
-
-return __lib

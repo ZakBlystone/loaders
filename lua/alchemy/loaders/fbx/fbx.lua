@@ -35,12 +35,12 @@ SOFTWARE.
 AddCSLuaFile()
 local __lib = alchemy.MakeLib({
     using = {
-        include("../../common/datareader.lua"),
-        include("../../common/utils.lua"),
-    },
+        alchemy.utils,
+    }
 })
 
-local deflate = include("../../common/libdeflate.lua")
+alchemy.InstallDataReader()
+
 local compressed_arrays = {}
 
 local function type_array(t)
@@ -162,7 +162,7 @@ function Load( filename, path )
 
     for k,v in ipairs(compressed_arrays) do
         --print("-- Inflate array [" .. k .. "] -- " .. #v.cdata)
-        local data = deflate:DecompressZlib(v.cdata)
+        local data = alchemy.LibDeflate:DecompressZlib(v.cdata)
         begin_data(data)
         local parsed = array_of(v.type, v.length)
         end_data()

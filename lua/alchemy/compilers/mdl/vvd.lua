@@ -34,10 +34,10 @@ SOFTWARE.
 
 AddCSLuaFile()
 local __lib = alchemy.MakeLib({
-    using = {
-        include("../../common/datawriter.lua"),
-    },
+    using = {},
 })
+
+alchemy.InstallDataWriter()
 
 MAX_NUM_BONES_PER_VERT = 3
 MAX_NUM_LODS = 8

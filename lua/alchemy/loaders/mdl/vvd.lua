@@ -26,11 +26,9 @@ SOFTWARE.
 ]]
 
 AddCSLuaFile()
-local __lib = alchemy.MakeLib({
-    using = {
-        include("../../common/datareader.lua"),
-    },
-})
+local __lib = alchemy.MakeLib()
+
+alchemy.InstallDataReader()
 
 MAX_NUM_BONES_PER_VERT = 3
 MAX_NUM_LODS = 8

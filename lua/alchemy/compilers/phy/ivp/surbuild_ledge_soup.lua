@@ -25,6 +25,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ]]
 
+AddCSLuaFile()
+
 module("ivp", package.seeall)
 
 local lshift = bit.lshift
@@ -32,7 +34,7 @@ local rshift = bit.rshift
 local bor = bit.bor
 local bnot = bit.bnot
 local band = bit.band
-local utils = include("../../../common/utils.lua")
+local utils = alchemy.utils
 
 IVP_COMPACT_BOUNDINGBOX_STEP_SIZE = 1.0 / 250.0
 P_FLOAT_RES = 1e-6

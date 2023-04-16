@@ -25,13 +25,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ]]
 
-AddCSLuaFile()
-local __lib = alchemy.MakeLib({
-    using = {
-        include("qmath.lua"),
-    }
-})
-
+local qmath = alchemy.qmath
+local quat_meta = qmath.quat_meta
 local str_byte = string.byte
 local str_sub = string.sub
 local str_find = string.find
@@ -350,6 +345,3 @@ function align4()
     Write(m_file, str_rep('\xCD', w))
 
 end
-
-
-return __lib

@@ -29,7 +29,7 @@ AddCSLuaFile()
 local __lib = alchemy.MakeLib({
     using = {
         include("mdl.lua"),
-        include("../../common/keytable.lua")
+        alchemy.keytable,
     },
 })
 

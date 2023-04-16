@@ -34,10 +34,10 @@ SOFTWARE.
 
 AddCSLuaFile()
 local __lib = alchemy.MakeLib({
-    using = {
-        include("../../common/datawriter.lua"),
-    },
+    using = {},
 })
+
+alchemy.InstallDataWriter()
 
 local lshift, rshift, band, bor, bnot = bit.lshift, bit.rshift, bit.band, bit.bor, bit.bnot
 local default_weight = { {0, 1}, {0, 0}, {0, 0} }

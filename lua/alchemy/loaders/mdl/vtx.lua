@@ -28,10 +28,11 @@ SOFTWARE.
 AddCSLuaFile()
 local __lib = alchemy.MakeLib({
     using = {
-        include("../../common/datareader.lua"),
-        include("../../common/utils.lua"),
-    },
+        alchemy.utils,
+    }
 })
+
+alchemy.InstallDataReader()
 
 local lshift, rshift, band, bor, bnot = bit.lshift, bit.rshift, bit.band, bit.bor, bit.bnot
 

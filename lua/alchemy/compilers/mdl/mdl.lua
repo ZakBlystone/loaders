@@ -35,13 +35,14 @@ SOFTWARE.
 AddCSLuaFile()
 local __lib = alchemy.MakeLib({
     using = {
-        include("../../common/datawriter.lua"),
-        include("../../common/keytable.lua"),
         include("vtx.lua"),
         include("vvd.lua"),
         alchemy.Compiler("phy"),
+        alchemy.keytable,
     },
 })
+
+alchemy.InstallDataWriter()
 
 STUDIO_IDENT = "IDST"
 STUDIO_VERSION = 48

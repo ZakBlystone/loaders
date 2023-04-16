@@ -28,10 +28,11 @@ SOFTWARE.
 AddCSLuaFile()
 local __lib = alchemy.MakeLib({
     using = {
-        include("../../common/datawriter.lua"),
-        include("../../common/utils.lua"),
+        alchemy.utils,
     }
 })
+
+alchemy.InstallDataWriter()
 
 local gma_ext = ".dat"
 local mounted_content_path = "temp/__mounted"

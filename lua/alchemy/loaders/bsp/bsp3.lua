@@ -33,11 +33,9 @@ SOFTWARE.
 ]]
 
 AddCSLuaFile()
-local __lib = alchemy.MakeLib({
-    using = {
-        include("../../common/datareader.lua"),
-    },
-})
+local __lib = alchemy.MakeLib()
+
+alchemy.InstallDataReader()
 
 LUMP_ENTITIES                        = 0  --done
 LUMP_PLANES                          = 1  --done

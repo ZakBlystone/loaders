@@ -25,9 +25,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ]]
 
+AddCSLuaFile()
+
 module("ivp", package.seeall)
 
-local utils = include("../../../common/utils.lua")
+local utils = alchemy.utils
 local ll_insert = utils.ll_insert
 local ll_remove = utils.ll_remove
 

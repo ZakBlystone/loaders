@@ -2,10 +2,10 @@ include("alchemy_toolkit.lua")
 
 if CLIENT then return end
 
-local reader = include("alchemy/common/datareader.lua")
-local writer = include("alchemy/common/datawriter.lua")
-local quat = setmetatable({x=2, y=4, z=8, w=16}, reader.quat_meta)
-local quat2 = setmetatable({x=0.5, y=0.5, z=0.5, w=0.5}, reader.quat_meta)
+local reader = alchemy.InstallDataReader(true)
+local writer = alchemy.InstallDataWriter(true)
+local quat = setmetatable({x=2, y=4, z=8, w=16}, alchemy.qmath.quat_meta)
+local quat2 = setmetatable({x=0.5, y=0.5, z=0.5, w=0.5}, alchemy.qmath.quat_meta)
 
 writer.open_data("datatest.dat")
 writer.uint32(120)

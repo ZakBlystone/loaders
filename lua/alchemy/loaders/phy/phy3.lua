@@ -35,10 +35,11 @@ SOFTWARE.
 AddCSLuaFile()
 local __lib = alchemy.MakeLib({
     using = {
-        include("../../common/datareader.lua"),
-        include("../../common/keytable.lua"),
+        alchemy.keytable,
     }
 })
+
+alchemy.InstallDataReader()
 
 COLLIDE_POLY = 0
 COLLIDE_MOPP = 1

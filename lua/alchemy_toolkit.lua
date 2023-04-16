@@ -28,10 +28,51 @@ SOFTWARE.
 AddCSLuaFile()
 module("alchemy", package.seeall)
 
-__alchemy = __alchemy or {}
+-- Common
+AddCSLuaFile("alchemy/common/datareader.lua")
+AddCSLuaFile("alchemy/common/datawriter.lua")
+AddCSLuaFile("alchemy/common/keytable.lua")
+AddCSLuaFile("alchemy/common/libdeflate.lua")
+AddCSLuaFile("alchemy/common/qmath.lua")
+AddCSLuaFile("alchemy/common/utils.lua")
+AddCSLuaFile("alchemy/common/quickhull/face.lua")
+AddCSLuaFile("alchemy/common/quickhull/halfedge.lua")
+AddCSLuaFile("alchemy/common/quickhull/quickhull.lua")
+AddCSLuaFile("alchemy/common/quickhull/vertex.lua")
+AddCSLuaFile("alchemy/common/quickhull/vertexlist.lua")
 
-function Init()
+-- Compilers
+AddCSLuaFile("alchemy/compilers/gma/gma.lua")
+AddCSLuaFile("alchemy/compilers/mdl/mdl.lua")
+AddCSLuaFile("alchemy/compilers/mdl/studiomdl.lua")
+AddCSLuaFile("alchemy/compilers/mdl/vtx.lua")
+AddCSLuaFile("alchemy/compilers/mdl/vvd.lua")
+AddCSLuaFile("alchemy/compilers/phy/ivp/compact_ledge_gen.lua")
+AddCSLuaFile("alchemy/compilers/phy/ivp/object_polygon_tetra.lua")
+AddCSLuaFile("alchemy/compilers/phy/ivp/point_hash.lua")
+AddCSLuaFile("alchemy/compilers/phy/ivp/surbuild_ledge_soup.lua")
+AddCSLuaFile("alchemy/compilers/phy/ivp/surbuild_pointsoup.lua")
+AddCSLuaFile("alchemy/compilers/phy/ivp/surbuild_polygon_convex.lua")
+AddCSLuaFile("alchemy/compilers/phy/ivp/templates.lua")
+AddCSLuaFile("alchemy/compilers/phy/ivp/triangle_gen.lua")
+AddCSLuaFile("alchemy/compilers/phy/ivp/types.lua")
+AddCSLuaFile("alchemy/compilers/phy/phy.lua")
+
+-- Loaders
+AddCSLuaFile("alchemy/loaders/bsp/bsp3.lua")
+AddCSLuaFile("alchemy/loaders/fbx/fbx.lua")
+AddCSLuaFile("alchemy/loaders/mdl/mdl3.lua")
+AddCSLuaFile("alchemy/loaders/mdl/vtx.lua")
+AddCSLuaFile("alchemy/loaders/mdl/vvd.lua")
+AddCSLuaFile("alchemy/loaders/phy/phy3.lua")
+
+if not __alchemy then
+
     __alchemy = {}
+    __alchemy.chunks = {}
+    __alchemy.loaders = {}
+    __alchemy.compilers = {}
+
 end
 
 function MakeLib( opts )
@@ -39,12 +80,8 @@ function MakeLib( opts )
     local _lib = {}
     setmetatable(_lib, {__index = _G})
 
-    if opts then
-        for _, lib in ipairs(opts.using or {}) do
-            for k,v in pairs(lib) do
-                _lib[k] = _lib[k] or v
-            end
-        end
+    for _, lib in ipairs((opts or {}).using or {}) do
+        for k,v in pairs(lib) do _lib[k] = _lib[k] or v end
     end
 
     setfenv(2, _lib)
@@ -53,46 +90,84 @@ function MakeLib( opts )
 end
 
 utils = include("alchemy/common/utils.lua")
+qmath = include("alchemy/common/qmath.lua")
+LibDeflate = include("alchemy/common/libdeflate.lua")
+QuickHull = include("alchemy/common/quickhull/quickhull.lua")
+keytable = include("alchemy/common/keytable.lua")
+
+local function InstallChunk(filename, as_table)
+
+    local chunk = __alchemy.chunks[filename] or CompileFile(filename, "chunk")
+    __alchemy.chunks[filename] = chunk
+    if as_table then
+        local env = {}
+        setmetatable(env, {__index = _G})
+        setfenv(chunk, env)
+        chunk()
+        return env
+    else
+        setfenv(chunk, getfenv(3))
+        return chunk()
+    end
+
+end
+
+function InstallDataReader(as_table) return InstallChunk("alchemy/common/datareader.lua", as_table) end
+function InstallDataWriter(as_table) return InstallChunk("alchemy/common/datawriter.lua", as_table) end
+
+function Init()
+
+    __alchemy.chunks = {}
+    --__alchemy.loaders = {}
+    --__alchemy.compilers = {}
+
+end
 
 local loader_formats = {
     ["bsp"] = function()
-        if not __alchemy.bsp_loader then
-            __alchemy.bsp_loader = include("alchemy/loaders/bsp/bsp3.lua")
+        if not __alchemy.loaders.bsp then
+            __alchemy.loaders.bsp = include("alchemy/loaders/bsp/bsp3.lua")
         end
-        return __alchemy.bsp_loader
+        return __alchemy.loaders.bsp
     end,
     ["mdl"] = function()
-        if not __alchemy.mdl_loader then
-            __alchemy.mdl_loader = include("alchemy/loaders/mdl/mdl3.lua")
+        if not __alchemy.loaders.mdl then
+            __alchemy.loaders.mdl = include("alchemy/loaders/mdl/mdl3.lua")
         end
-        return __alchemy.mdl_loader
+        return __alchemy.loaders.mdl
     end,
     ["fbx"] = function()
-        if not __alchemy.fbx_loader then
-            __alchemy.fbx_loader = include("alchemy/loaders/fbx/fbx.lua")
+        if not __alchemy.loaders.fbx then
+            __alchemy.loaders.fbx = include("alchemy/loaders/fbx/fbx.lua")
         end
-        return __alchemy.fbx_loader
+        return __alchemy.loaders.fbx
+    end,
+    ["phy"] = function()
+        if not __alchemy.loaders.phy then
+            __alchemy.loaders.phy = include("alchemy/loaders/phy/phy3.lua")
+        end
+        return __alchemy.loaders.phy
     end,
 }
 
 local compiler_formats = {
     ["mdl"] = function()
-        if not __alchemy.mdl_compiler then
-            __alchemy.mdl_compiler = include("alchemy/compilers/mdl/studiomdl.lua")
+        if not __alchemy.compilers.mdl then
+            __alchemy.compilers.mdl = include("alchemy/compilers/mdl/studiomdl.lua")
         end
-        return __alchemy.mdl_compiler
+        return __alchemy.compilers.mdl
     end,
     ["gma"] = function()
-        if not __alchemy.gma_compiler then
-            __alchemy.gma_compiler = include("alchemy/compilers/gma/gma.lua")
+        if not __alchemy.compilers.gma then
+            __alchemy.compilers.gma = include("alchemy/compilers/gma/gma.lua")
         end
-        return __alchemy.gma_compiler
+        return __alchemy.compilers.gma
     end,
     ["phy"] = function()
-        if not __alchemy.phy_compiler then
-            __alchemy.phy_compiler = include("alchemy/compilers/phy/phy.lua")
+        if not __alchemy.compilers.phy then
+            __alchemy.compilers.phy = include("alchemy/compilers/phy/phy.lua")
         end
-        return __alchemy.phy_compiler
+        return __alchemy.compilers.phy
     end,
 }
 

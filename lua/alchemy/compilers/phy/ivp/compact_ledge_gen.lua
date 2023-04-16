@@ -25,14 +25,17 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ]]
 
+AddCSLuaFile()
+
 module("ivp", package.seeall)
 
+local utils = alchemy.utils
 local lshift = bit.lshift
 local rshift = bit.rshift
 local bor = bit.bor
 local bnot = bit.bnot
 local band = bit.band
-local util = include("../../../common/utils.lua")
+
 
 -- COMPACT EDGE
 local meta = {}
@@ -245,8 +248,8 @@ function meta:Prepare( triangles )
                 point_hash:AddPoint(e.start_point)
                 self.points[#self.points+1] = e.start_point
                 local v = e.start_point.v
-                util.v_min(self.tmp_mins, v)
-                util.v_max(self.tmp_maxs, v)
+                utils.v_min(self.tmp_mins, v)
+                utils.v_max(self.tmp_maxs, v)
             else
                 e.start_point.compact_index = idx-1
             end

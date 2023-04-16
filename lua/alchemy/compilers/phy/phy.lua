@@ -28,13 +28,12 @@ SOFTWARE.
 AddCSLuaFile()
 local __lib = alchemy.MakeLib({
     using = {
-        include("../../common/datawriter.lua"),
+        alchemy.keytable,
+        alchemy.utils,
     }
 })
 
-local quickHull = include("../../common/quickhull/quickhull.lua")
-local keytable = include("../../common/keytable.lua")
-local utils = include("../../common/utils.lua")
+alchemy.InstallDataWriter()
 
 local unit_scale_meters = 0.0254
 local unit_scale_meters_inv = 1/unit_scale_meters
@@ -62,7 +61,7 @@ include("ivp/templates.lua")
 include("ivp/triangle_gen.lua")
 
 local function addToPoints(v, point_hash, newpoints)
-    local h = utils.hash_vec(v)
+    local h = hash_vec(v)
     if point_hash[h] then return end
     point_hash[h] = true
     newpoints[#newpoints+1] = v
@@ -73,7 +72,7 @@ local function ReduceToUniquePoints( points )
     local hash = {}
     local out = {}
     for _, p in ipairs(points) do
-        local h = utils.hash_vec(p)
+        local h = hash_vec(p)
         if hash[h] then continue end
         out[#out+1] = p
         hash[h] = true
@@ -89,7 +88,7 @@ function BuildLedgeFromPoints( points )
         points[k] = Pos2PHY(p)
     end
 
-    local qh = quickHull.new(points) qh:build()
+    local qh = alchemy.QuickHull.new(points) qh:build()
     local verts = qh.vertices
     local newpoints = {}
     local point_hash = {}
@@ -128,7 +127,7 @@ function BuildLedgeFromPoints( points )
         end
     end]]
 
-    --utils.print_table(newpoints, "new points")
+    --print_table(newpoints, "new points")
 
     local template = ivp.PlanesToTemplate( newpoints, ps_planes )
 
@@ -147,14 +146,14 @@ function BuildSurface( ledges )
 
     return {
         ledgesoup = surf,
-        keys = keytable.new_keytable(),
+        keys = new_keytable(),
     }
 
 end
 
 function WriteStudioPHY( v )
 
-    local final_keys = keytable.new_keytable()
+    local final_keys = new_keytable()
 
     local physbones = v.physbones
     local totalmass = 0
