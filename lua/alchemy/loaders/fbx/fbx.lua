@@ -39,7 +39,7 @@ local __lib = alchemy.MakeLib({
     }
 })
 
-alchemy.InstallDataReader()
+alchemy.InstallDataReader(false, __lib)
 
 local compressed_arrays = {}
 

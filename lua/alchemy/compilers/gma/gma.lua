@@ -32,7 +32,7 @@ local __lib = alchemy.MakeLib({
     }
 })
 
-alchemy.InstallDataWriter()
+alchemy.InstallDataWriter(false, __lib)
 
 local gma_ext = ".dat"
 local mounted_content_path = "temp/__mounted"

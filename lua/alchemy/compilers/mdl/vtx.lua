@@ -37,7 +37,7 @@ local __lib = alchemy.MakeLib({
     using = {},
 })
 
-alchemy.InstallDataWriter()
+alchemy.InstallDataWriter(false, __lib)
 
 local lshift, rshift, band, bor, bnot = bit.lshift, bit.rshift, bit.band, bit.bor, bit.bnot
 local default_weight = { {0, 1}, {0, 0}, {0, 0} }

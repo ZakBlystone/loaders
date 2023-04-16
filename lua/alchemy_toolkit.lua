@@ -95,7 +95,7 @@ LibDeflate = include("alchemy/common/libdeflate.lua")
 QuickHull = include("alchemy/common/quickhull/quickhull.lua")
 keytable = include("alchemy/common/keytable.lua")
 
-local function InstallChunk(filename, as_table)
+local function InstallChunk(filename, as_table, func_env)
 
     local chunk = __alchemy.chunks[filename] or CompileFile(filename, "chunk")
     __alchemy.chunks[filename] = chunk
@@ -106,22 +106,31 @@ local function InstallChunk(filename, as_table)
         chunk()
         return env
     else
-        setfenv(chunk, getfenv(3))
+        setfenv(chunk, func_env)
         return chunk()
     end
 
 end
 
-function InstallDataReader(as_table) return InstallChunk("alchemy/common/datareader.lua", as_table) end
-function InstallDataWriter(as_table) return InstallChunk("alchemy/common/datawriter.lua", as_table) end
+function InstallDataReader(as_table, func_env) return InstallChunk("alchemy/common/datareader.lua", as_table, func_env) end
+function InstallDataWriter(as_table, func_env) return InstallChunk("alchemy/common/datawriter.lua", as_table, func_env) end
 
 function Init()
 
     __alchemy.chunks = {}
-    --__alchemy.loaders = {}
-    --__alchemy.compilers = {}
+    __alchemy.loaders = {}
+    __alchemy.compilers = {}
 
 end
+
+--[[__alchemy.loaders.bsp = include("alchemy/loaders/bsp/bsp3.lua")
+__alchemy.loaders.mdl = include("alchemy/loaders/mdl/mdl3.lua")
+__alchemy.loaders.fbx = include("alchemy/loaders/fbx/fbx.lua")
+__alchemy.loaders.phy = include("alchemy/loaders/phy/phy3.lua")
+
+__alchemy.compilers.mdl = include("alchemy/compilers/mdl/studiomdl.lua")
+__alchemy.compilers.gma = include("alchemy/compilers/gma/gma.lua")
+__alchemy.compilers.phy = include("alchemy/compilers/phy/phy.lua")]]
 
 local loader_formats = {
     ["bsp"] = function()

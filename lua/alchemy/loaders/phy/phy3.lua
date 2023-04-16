@@ -39,7 +39,7 @@ local __lib = alchemy.MakeLib({
     }
 })
 
-alchemy.InstallDataReader()
+alchemy.InstallDataReader(false, __lib)
 
 COLLIDE_POLY = 0
 COLLIDE_MOPP = 1

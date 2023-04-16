@@ -42,7 +42,7 @@ local __lib = alchemy.MakeLib({
     },
 })
 
-alchemy.InstallDataReader()
+alchemy.InstallDataReader(false, __lib)
 
 local lshift, rshift, band, bor, bnot = bit.lshift, bit.rshift, bit.band, bit.bor, bit.bnot
 

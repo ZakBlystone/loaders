@@ -33,7 +33,7 @@ local __lib = alchemy.MakeLib({
     }
 })
 
-alchemy.InstallDataWriter()
+alchemy.InstallDataWriter(false, __lib)
 
 local unit_scale_meters = 0.0254
 local unit_scale_meters_inv = 1/unit_scale_meters

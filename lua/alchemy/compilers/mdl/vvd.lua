@@ -37,7 +37,7 @@ local __lib = alchemy.MakeLib({
     using = {},
 })
 
-alchemy.InstallDataWriter()
+alchemy.InstallDataWriter(false, __lib)
 
 MAX_NUM_BONES_PER_VERT = 3
 MAX_NUM_LODS = 8

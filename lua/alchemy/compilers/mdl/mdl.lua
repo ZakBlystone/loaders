@@ -42,7 +42,7 @@ local __lib = alchemy.MakeLib({
     },
 })
 
-alchemy.InstallDataWriter()
+alchemy.InstallDataWriter(false, __lib)
 
 STUDIO_IDENT = "IDST"
 STUDIO_VERSION = 48

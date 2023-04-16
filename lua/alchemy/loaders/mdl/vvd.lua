@@ -28,7 +28,7 @@ SOFTWARE.
 AddCSLuaFile()
 local __lib = alchemy.MakeLib()
 
-alchemy.InstallDataReader()
+alchemy.InstallDataReader(false, __lib)
 
 MAX_NUM_BONES_PER_VERT = 3
 MAX_NUM_LODS = 8

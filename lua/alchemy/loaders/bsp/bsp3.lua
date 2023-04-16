@@ -35,7 +35,7 @@ SOFTWARE.
 AddCSLuaFile()
 local __lib = alchemy.MakeLib()
 
-alchemy.InstallDataReader()
+alchemy.InstallDataReader(false, __lib)
 
 LUMP_ENTITIES                        = 0  --done
 LUMP_PLANES                          = 1  --done
