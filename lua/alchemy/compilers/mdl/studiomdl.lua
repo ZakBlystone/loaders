@@ -455,10 +455,10 @@ function m_physbone:GetVolume() return self.volume end -- compute
 local function v_round(v)
 
     local x,y,z = v:Unpack()
-    local factor = 1 --0.5
-    --x = math.Round(x * factor) / factor
-    --y = math.Round(y * factor) / factor
-    --z = math.Round(z * factor) / factor
+    local factor = 0.5 --0.5
+    x = math.Round(x * factor) / factor
+    y = math.Round(y * factor) / factor
+    z = math.Round(z * factor) / factor
     return Vector(x,y,z)
 
 end

@@ -283,6 +283,7 @@ function snap_float(f)
 
 end
 
+-- round double to nearest float
 function round_float(f)
 
     local fr,exp = frexp(abs(f))
@@ -296,17 +297,26 @@ function round_float(f)
 
 end
 
-function snap_vec(v)
+-- iterate over combinations in array
+function combinations(v)
 
-    local x,y,z = __vunpack(v)
-    local a = x*x+y*y+z*z
-    x = snap_float(x)
-    y = snap_float(y)
-    z = snap_float(z)
-    local b = x*x+y*y+z*z
-    print(b-a)
-    __vpack(v,x,y,z)
-    return v
+    local n,i,j=#v,1,1
+    return function()
+        j = j + 1
+        if j == n+1 then i,j = i+1,i+2 end
+        if i < n then return i,j end
+    end
+
+end
+
+-- weld elements in an array based on a condition
+function array_weld(v, cond)
+
+    for i,j in combinations(v) do
+        if cond( v[i], v[j] ) then
+            v[i] = v[j]
+        end
+    end
 
 end
 

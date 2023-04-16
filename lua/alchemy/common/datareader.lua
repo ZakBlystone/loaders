@@ -45,11 +45,14 @@ local m_size = 0
 local m_active_span = nil
 local m_array_spans = {}
 local m_vis = {}
+local m_bigendian = false
 
 function get_ptr() return m_ptr end
 function get_data() return m_data end
 function get_data_size() return m_size end
 function get_coverage_vis() return m_vis end
+
+function set_big_endian(b) m_bigendian = b end
 
 function coverage_data( start, stop )
     for i=start, stop do m_coverage[i] = true end
@@ -171,6 +174,7 @@ end
 function uint32()
     coverage_data(m_ptr, m_ptr+4)
     local a,b,c,d = str_byte(m_data, m_ptr, m_ptr + 4)
+    if m_bigendian then d,c,b,a = a,b,c,d end
     m_ptr = m_ptr + 4
     local n = bor( lshift(d,24), lshift(c,16), lshift(b, 8), a )
     if n < 0 then n = (0x1p32) - 1 - bnot(n) end
@@ -180,6 +184,7 @@ end
 function uint16()
     coverage_data(m_ptr, m_ptr+2)
     local a,b = str_byte(m_data, m_ptr, m_ptr + 2)
+    if m_bigendian then b,a = a,b end
     m_ptr = m_ptr + 2
     return bor( lshift(b, 8), a )
 end
@@ -194,6 +199,7 @@ end
 function int32()
     coverage_data(m_ptr, m_ptr+4)
     local a,b,c,d = str_byte(m_data, m_ptr, m_ptr + 4)
+    if m_bigendian then d,c,b,a = a,b,c,d end
     m_ptr = m_ptr + 4
     local n = bor( lshift(d,24), lshift(c,16), lshift(b, 8), a )
     return n
@@ -202,6 +208,7 @@ end
 function int16()
     coverage_data(m_ptr, m_ptr+2)
     local a,b = str_byte(m_data, m_ptr, m_ptr + 2)
+    if m_bigendian then b,a = a,b end
     m_ptr = m_ptr + 2
     local n = bor( lshift(b, 8), a )
     if band( b, 0x80 ) ~= 0 then n = -(0x1p16) + n end
@@ -244,6 +251,7 @@ end
 function float32()
     coverage_data(m_ptr, m_ptr + 4)
     local a,b,c,d = str_byte(m_data, m_ptr, m_ptr + 4)
+    if m_bigendian then d,c,b,a = a,b,c,d end
     m_ptr = m_ptr + 4
     local fr = bor( lshift( band(c, 0x7F), 16), lshift(b, 8), a )
     local exp = bor( band( d, 0x7F ) * 2, rshift( c, 7 ) )
@@ -252,6 +260,26 @@ function float32()
     local s = d > 127 and -1 or 1
     local n = math.ldexp( ( math.ldexp(fr, -23) + 1 ) * s, exp - 127 )
     return n
+end
+
+function float64()
+    coverage_data(m_ptr, m_ptr + 8)
+    local a,b,c,d,e,f,g,h = str_byte(m_data, m_ptr, m_ptr + 8)
+    if not m_bigendian then h,g,f,e,d,c,b,a = a,b,c,d,e,f,g,h end
+    m_ptr = m_ptr + 8
+
+    local bytes = {a,b,c,d,e,f,g,h}
+    local sign = 1
+    local mantissa = bytes[2] % 2^4
+    for i = 3, 8 do mantissa = mantissa * 256 + bytes[i] end
+    if bytes[1] > 127 then sign = -1 end
+    local exponent = (bytes[1] % 128) * 2^4 + math.floor(bytes[2] / 2^4)
+
+    if exponent == 0 then
+        return 0
+    end
+    mantissa = (math.ldexp(mantissa, -52) + 1) * sign
+    return math.ldexp(mantissa, exponent - 1023)
 end
 
 function vector32() return Vector( float32(), float32(), float32() ) end

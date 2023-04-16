@@ -67,6 +67,12 @@ local loader_formats = {
         end
         return __alchemy.mdl_loader
     end,
+    ["fbx"] = function()
+        if not __alchemy.fbx_loader then
+            __alchemy.fbx_loader = include("alchemy/loaders/fbx/fbx.lua")
+        end
+        return __alchemy.fbx_loader
+    end,
 }
 
 local compiler_formats = {

@@ -5,7 +5,90 @@ alchemy.Init()
 local mdl = alchemy.Loader("mdl")
 local utils = alchemy.utils
 
---if true then return end
+if SERVER then
+
+    --local fbx = alchemy.Loader("fbx")
+    --fbx.Load("test.fbx", "DATA")
+
+    --[[local deflate = include("alchemy/common/libdeflate.lua")
+    local r = include("alchemy/common/datareader.lua")
+
+    r.open_data("test.unitypackage", "DATA")
+
+    local magic = r.uint16()
+    assert(magic == 0x8b1f)
+    local method = r.uint8()
+    assert(method == 0x8)
+    local fflags = r.uint8()
+    local timestamp = r.uint32()
+    local cflags = r.uint8()
+    local osid = r.uint8()
+    local filename = nil
+
+    if bit.band(fflags, 0x8) ~= 0 then
+        filename = r.nullstr()
+    end
+
+    local remain = string.sub(r.get_data(), r.get_ptr(), -1)
+    r.end_data()
+
+    local tar = deflate:DecompressDeflate(remain)
+    r.begin_data(tar)
+
+    local function block()
+        local k = r.tell_data()
+        local header = {
+            filename = r.vcharstr(100),
+            mode = r.vcharstr(8),
+            uid = r.vcharstr(8),
+            gid = r.vcharstr(8),
+            size = r.vcharstr(12),
+            mtime = r.vcharstr(12),
+            chksum = r.vcharstr(8),
+            typeflag = r.char(),
+            linkname = r.vcharstr(100),
+            magic = r.vcharstr(6),
+            version = r.vcharstr(2),
+            uname = r.vcharstr(32),
+            gname = r.vcharstr(32),
+            devmajor = r.vcharstr(8),
+            devminor = r.vcharstr(8),
+            prefix = r.vcharstr(155),
+        }
+
+        if header.magic == "" then return nil end
+
+        local remainder = r.charstr(12)
+
+        if header.typeflag == '0' then
+            local nbytes = tonumber(header.size, 8)
+            local rounding = 512 - bit.band(nbytes, 511)
+            header.data = r.charstr(nbytes)
+            if rounding ~= 0 then
+                r.seek_data( r.tell_data() + rounding )
+            end
+
+            print("FILE: " .. header.filename .. " : " .. nbytes .. "|" .. header.size)
+        elseif header.typeflag == '5' then
+            print("DIR: " .. header.filename)
+        else
+            PrintTable(header)
+            error("unknown typeflag: " .. tostring(header.typeflag))
+        end
+
+        if string.find(header.filename, "pathname") ~= nil then
+            print(header.data)
+        end
+
+        return header
+    end
+
+    for i=1, 10000 do
+        if block() == nil then break end
+    end]]
+end
+
+if true then return end
 
 local function Prof( k, f, ... )
 
@@ -231,9 +314,113 @@ if CLIENT then
         --loaded:RenderModel( parts[1].models[1] )
     
     end)
+
+
+    local lshift = bit.lshift
+    local rshift = bit.rshift
+    local abs = math.abs
+    local frexp = math.frexp
+    local ldexp = math.ldexp
+    local floor = math.floor
+    local strchar = string.char
+    local __vunpack = FindMetaTable("Vector").Unpack
+    local function float2str(v)
+        local fr,exp = frexp(abs(v))
+        fr = floor(ldexp(fr, 24))
+        exp = exp + 126
+        if v == 0.0 then fr,exp = 0,0 end
+        return strchar(fr%256, rshift(fr,8)%256, (exp%2)*128+rshift(fr,16)%128, (v<0 and 128 or 0)+rshift(exp,1))
+    end
+
+    local function vec_hash(v)
+        local x,y,z = __vunpack(v)
+        local frx,expx = frexp(abs(x)) expx,frx = expx + 126, floor(ldexp(frx, 24))
+        local fry,expy = frexp(abs(y)) expy,fry = expy + 126, floor(ldexp(fry, 24))
+        local frz,expz = frexp(abs(z)) expz,frz = expz + 126, floor(ldexp(frz, 24))
+        if x == 0.0 then frx,expx = 0,0 end
+        if y == 0.0 then fry,expy = 0,0 end
+        if z == 0.0 then frz,expz = 0,0 end
+        return strchar(
+            frx%256, rshift(frx,8)%256, (expx%2)*128+rshift(frx,16)%128, (x<0 and 128 or 0)+rshift(expx,1),
+            fry%256, rshift(fry,8)%256, (expy%2)*128+rshift(fry,16)%128, (y<0 and 128 or 0)+rshift(expy,1),
+            frz%256, rshift(frz,8)%256, (expz%2)*128+rshift(frz,16)%128, (z<0 and 128 or 0)+rshift(expz,1)
+        )
+    end
+
+    local bor = bit.bor
+    local band = bit.band
+    local function sblsh(s, e, b) return lshift(s:byte(e), b) end
+    function str2float(str, off)
+        local b4, b3 = str:byte(off+4), str:byte(off+3)
+        local fr = lshift(band(b3, 0x7F), 16) + sblsh(str, off+2, 8) + sblsh(str, off+1, 0)
+        local exp = band(b4, 0x7F) * 2 + rshift(b3, 7)
+        if exp == 0 then return 0 end
     
+        local s = (b4 > 127) and -1 or 1
+        local n = math.ldexp((math.ldexp(fr, -23) + 1) * s, exp - 127)
+        return n
+    end
+
+    
+    local function snap_float(f)
+        local fr,exp = frexp(abs(f))
+        local s = f<0 and -1 or 1
+        local sn = floor(ldexp(fr, 24))
+        local k = ldexp(ldexp(sn, -23) * s, exp-1)
+        return k
+    end
+
+    local function round_float(f)
+        local fr,exp = frexp(abs(f))
+        local s = f<0 and -1 or 1
+        local sn = floor(ldexp(fr, 24))
+        local k = ldexp(ldexp(sn, -23) * s, exp-1)
+        local k1 = ldexp(ldexp(sn+1, -23) * s, exp-1)
+        local d0 = abs(f-k)
+        local d1 = abs(f-k1)
+        if d0 < d1 then return k else return k1 end
+        --print(f,k,k1,sn)
+        return k
+    end
+
+
     hook.Add("HUDPaint", "paint_spans", function()
     
+        --[[local pos = LocalPlayer():GetPos()
+        local fl = float2str( pos.x )
+        local vl = vec_hash(pos)
+        local b64 = util.Base64Encode(vl)
+        local rv = Vector( str2float(vl, 0), str2float(vl, 4), str2float(vl, 8) ))]]
+
+        --[[local pos = LocalPlayer():GetPos() * 10000 + Vector(1.05288693,0,0)
+        local x = pos.x
+        local fl = float2str( x )
+        local rfl = str2float(fl, 0)
+        local sn = snap_float(x)
+
+        print(x - rfl, rfl - sn)]]
+
+        local o = math.sin(CurTime()/2) * 1
+        local v = -10000000.0 + o
+        local sn = round_float(v)
+
+        --[[MsgC( Color(255,255,0), (sn - snap_float(sn)) .. "\n")
+        MsgC( Color(255,255,255), v .. "\n")
+        MsgC( Color(255,80,80), sn .. "\n") 
+        MsgC( Color(100,255,100), (sn - v) .. "\n")
+        MsgC( Color(100,40,255), o .. "\n" )]]
+
+        --[[local t0 = SysTime()
+        for i=1, 100000 do
+            vec_hash( pos )
+        end
+        local timeTaken = SysTime() - t0
+        print(timeTaken*1000)]]
+
+        --assert(pos == rv)
+
+        --draw.SimpleText(b64 .. " : " .. tostring(pos - rv), "DermaLarge", 10, 10, Color(255,200,255))
+
         if true then return end
 
         local m_vis = mdl.get_coverage_vis()

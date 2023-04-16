@@ -112,7 +112,7 @@ function BuildLedgeFromPoints( points )
 
     end
 
-    local c = ColorRand()
+    --[[local c = ColorRand()
     for _, plane in ipairs(ps_planes) do
         local c = ColorRand()
         local n = #plane.points
@@ -126,7 +126,7 @@ function BuildLedgeFromPoints( points )
                 Pos2HL(v1) - normal * 0.2, 30, c, true )
 
         end
-    end
+    end]]
 
     --utils.print_table(newpoints, "new points")
 
